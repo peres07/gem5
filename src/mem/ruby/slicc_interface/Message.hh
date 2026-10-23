@@ -93,7 +93,13 @@ class Message
     virtual bool functionalRead(Packet *pkt)
     { panic("functionalRead(Packet) not implemented"); }
     virtual bool functionalRead(Packet *pkt, WriteMask &mask)
-    { panic("functionalRead(Packet,WriteMask) not implemented"); }
+    {
+        // P12: MESI_Two_Level implementa apenas a leitura sem mascara.
+        if (!functionalRead(pkt))
+            return false;
+        mask.setMask(pkt->getAddr() % mask.getBlockSize(), pkt->getSize());
+        return true;
+    }
     virtual bool functionalWrite(Packet *pkt)
     { panic("functionalWrite(Packet) not implemented"); }
 

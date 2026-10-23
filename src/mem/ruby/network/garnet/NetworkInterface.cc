@@ -445,6 +445,8 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
 
         m_net_ptr->increment_injected_packets(vnet);
         m_net_ptr->update_traffic_distribution(route);
+        // P12
+        m_net_ptr->p12RegistraTrafego(m_id, destID, num_flits);
         int packet_id = m_net_ptr->getNextPacketID();
         for (int i = 0; i < num_flits; i++) {
             m_net_ptr->increment_injected_flits(vnet);

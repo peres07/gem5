@@ -32,9 +32,12 @@
 #include "mem/ruby/network/garnet/GarnetNetwork.hh"
 
 #include <cassert>
+#include <string>
+#include <vector>
 
 #include "base/cast.hh"
 #include "base/compiler.hh"
+#include "base/output.hh"
 #include "debug/RubyNetwork.hh"
 #include "mem/ruby/common/NetDest.hh"
 #include "mem/ruby/network/MessageBuffer.hh"
@@ -44,6 +47,7 @@
 #include "mem/ruby/network/garnet/NetworkInterface.hh"
 #include "mem/ruby/network/garnet/NetworkLink.hh"
 #include "mem/ruby/network/garnet/Router.hh"
+#include "mem/ruby/slicc_interface/AbstractController.hh"
 #include "mem/ruby/system/RubySystem.hh"
 
 namespace gem5
@@ -71,6 +75,7 @@ GarnetNetwork::GarnetNetwork(const Params &p)
     m_buffers_per_ctrl_vc = p.buffers_per_ctrl_vc;
     m_routing_algorithm = p.routing_algorithm;
     m_next_packet_id = 0;
+    m_p12_matriz = p.p12_matriz; // P12
 
     m_enable_fault_model = p.enable_fault_model;
     if (m_enable_fault_model)
@@ -149,6 +154,27 @@ GarnetNetwork::init()
             router->printAggregateFaultProbability(std::cout);
             router->printFaultVector(std::cout);
         }
+    }
+
+    // P12: a topologia ja ligou os controladores aos roteadores.
+    if (m_p12_matriz) {
+        std::vector<std::string> nomes(m_nodes);
+        std::vector<int> roteadores(m_nodes);
+        for (auto *link : params().ext_links) {
+            auto *cntrl = link->params().ext_node;
+            NodeID global = getRubySystem()->MachineType_base_number(
+                cntrl->getType()) + cntrl->getVersion();
+            NodeID local = getLocalNodeID(global);
+            nomes[local] = cntrl->name();
+            roteadores[local] = safe_cast<Router*>(
+                link->params().int_node)->get_id();
+        }
+        OutputStream *os = simout.create("p12_nos.csv");
+        std::ostream &out = *os->stream();
+        out << "ni,controlador,roteador\n";
+        for (int i = 0; i < m_nodes; ++i)
+            out << i << ',' << nomes[i] << ',' << roteadores[i] << '\n';
+        simout.close(os);
     }
 }
 
@@ -386,6 +412,26 @@ GarnetNetwork::regStats()
 {
     Network::regStats();
 
+    // P12: nomes e ordem usam o mesmo identificador local do Garnet.
+    m_p12_msgs.init(m_nodes, m_nodes)
+        .name(name() + ".p12_msgs")
+        .flags(statistics::nozero);
+    m_p12_flits.init(m_nodes, m_nodes)
+        .name(name() + ".p12_flits")
+        .flags(statistics::nozero);
+    for (auto *link : params().ext_links) {
+        auto *cntrl = link->params().ext_node;
+        NodeID global = getRubySystem()->MachineType_base_number(
+            cntrl->getType()) + cntrl->getVersion();
+        NodeID local = getLocalNodeID(global);
+        std::string curto = cntrl->name();
+        curto = curto.substr(curto.rfind('.') + 1);
+        m_p12_msgs.subname(local, curto);
+        m_p12_msgs.ysubname(local, curto);
+        m_p12_flits.subname(local, curto);
+        m_p12_flits.ysubname(local, curto);
+    }
+
     // Packets
     m_packets_received
         .init(m_virtual_networks)
@@ -551,6 +597,18 @@ GarnetNetwork::regStats()
 }
 
 void
+GarnetNetwork::p12RegistraTrafego(NodeID src, NodeID dst, int flits)
+{
+    if (!m_p12_matriz)
+        return;
+    NodeID local_dst = getLocalNodeID(dst);
+    panic_if(src >= m_nodes || local_dst >= m_nodes,
+             "P12: identificador de controlador invalido");
+    m_p12_msgs[src][local_dst]++;
+    m_p12_flits[src][local_dst] += flits;
+}
+
+void
 GarnetNetwork::collateStats()
 {
     RubySystem *rs = params().ruby_system;
@@ -613,6 +671,14 @@ GarnetNetwork::update_traffic_distribution(RouteInfo route)
         (*m_data_traffic_distribution[src_node][dest_node])++;
     else
         (*m_ctrl_traffic_distribution[src_node][dest_node])++;
+}
+
+bool
+GarnetNetwork::functionalRead(Packet *pkt)
+{
+    // P12: Ruby usa esta sobrecarga durante clone() em SE.
+    WriteMask mask(getRubySystem()->getBlockSizeBytes());
+    return functionalRead(pkt, mask);
 }
 
 bool
