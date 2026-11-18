@@ -33,6 +33,7 @@
 #define __MEM_RUBY_NETWORK_GARNET_0_GARNETNETWORK_HH__
 
 #include <iostream>
+#include <optional> // P12
 #include <vector>
 
 #include "mem/ruby/network/Network.hh"
@@ -106,6 +107,7 @@ class GarnetNetwork : public Network
                           PortDirection src_outport_dirn,
                           PortDirection dest_inport_dirn);
 
+    bool functionalRead(Packet *pkt);
     bool functionalRead(Packet *pkt, WriteMask &mask);
     //! Function for performing a functional write. The return value
     //! indicates the number of messages that were written.
@@ -155,6 +157,8 @@ class GarnetNetwork : public Network
     }
 
     void update_traffic_distribution(RouteInfo route);
+    // P12: um registro por pacote unicast que obteve canal virtual.
+    void p12RegistraTrafego(NodeID src, NodeID dst, int flits);
     int getNextPacketID() { return m_next_packet_id++; }
 
   protected:
@@ -202,8 +206,13 @@ class GarnetNetwork : public Network
 
     std::vector<std::vector<statistics::Scalar *>> m_data_traffic_distribution;
     std::vector<std::vector<statistics::Scalar *>> m_ctrl_traffic_distribution;
+    // P12
+    bool m_p12_matriz;
+    std::optional<statistics::Vector2d> m_p12_msgs;
+    std::optional<statistics::Vector2d> m_p12_flits;
 
   private:
+    NodeID p12IdLocal(const BasicExtLink *link) const; // P12
     GarnetNetwork(const GarnetNetwork& obj);
     GarnetNetwork& operator=(const GarnetNetwork& obj);
 
