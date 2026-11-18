@@ -12,15 +12,19 @@ addToPath("../../")
 from common import Options
 from ruby import Ruby
 
-
 ap = argparse.ArgumentParser()
 Options.addCommonOptions(ap)
 Options.addSEOptions(ap)
 Ruby.define_options(ap)
-ap.set_defaults(cpu_type="X86O3CPU")
+ap.set_defaults(
+    cpu_type="X86TimingSimpleCPU",
+    network="garnet",
+    topology="MeshMapeada",
+    routing_algorithm=1,
+)
 ap.add_argument("--p12-mapa")
-ap.add_argument("--p12-matriz", action="store_true")
 ap.add_argument("--p12-helper")
+ap.add_argument("--p12-matriz", action="store_true")
 args = ap.parse_args()
 
 if not args.cmd or not os.path.isfile(args.cmd):
@@ -31,6 +35,8 @@ if args.num_l2caches != args.num_cpus or args.num_dirs != args.num_cpus:
     ap.error("L2 e diretorios devem ter um banco por nucleo")
 if args.network != "garnet":
     ap.error("use --network=garnet")
+if args.cacheline_size != 64:
+    ap.error("os workloads p12 usam linhas de cache de 64 bytes")
 if args.cpu_type not in ("X86TimingSimpleCPU", "X86O3CPU"):
     ap.error("use X86O3CPU ou X86TimingSimpleCPU")
 
@@ -50,20 +56,27 @@ Ruby.create_system(args, False, system)
 system.ruby.clk_domain = SrcClockDomain(
     clock=args.ruby_clock, voltage_domain=system.voltage_domain
 )
-system.ruby.network.p12_matriz = args.p12_matriz
+if args.p12_matriz:
+    system.ruby.network.p12_matriz = True
+
+# O processo inicial ativa apenas o primeiro contexto. Os demais ficam
+# disponiveis para pthread_create/clone, na ordem de criacao das CPUs.
+cmd = [args.cmd] + shlex.split(args.options or "")
+processo = Process(cmd=cmd)
+if args.p12_helper:
+    # O Python consulta o diretorio pessoal ao carregar ctypes.
+    processo.pid = 100
+    processo.env = [
+        f"HOME={os.path.expanduser('~')}",
+        "GLIBC_TUNABLES=glibc.pthread.rseq=0",
+    ]
 for i, cpu in enumerate(system.cpu):
     cpu.createInterruptController()
     system.ruby._cpu_ports[i].connectCpuPorts(cpu)
-    # Contextos extras terminam antes da ROI e ficam livres para clone().
-    if i == 0:
-        cmd = [args.cmd] + shlex.split(args.options or "")
-    elif args.p12_helper:
-        cmd = [args.p12_helper]
+    if i and args.p12_helper:
+        cpu.workload = Process(pid=100 + i, cmd=[args.p12_helper])
     else:
-        cmd = [args.cmd, "--helper"]
-    cpu.workload = Process(
-        pid=100 + i, cmd=cmd, env=["GLIBC_TUNABLES=glibc.pthread.rseq=0"]
-    )
+        cpu.workload = processo
     cpu.createThreads()
 
 system.workload = SEWorkload.init_compatible(args.cmd)
@@ -71,3 +84,4 @@ root = Root(full_system=False, system=system)
 m5.instantiate()
 evento = m5.simulate()
 print(f"Fim @ tick {m5.curTick()}: {evento.getCause()}")
+raise SystemExit(evento.getCode())

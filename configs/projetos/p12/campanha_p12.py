@@ -1,61 +1,185 @@
+# Copyright (c) 2026 The Project 12 contributors
 # SPDX-License-Identifier: BSD-3-Clause
-"""Executa a campanha P12 com 16 nucleos O3 e cinco mapas aleatorios."""
 
-from extrai_p12 import grava_csv
-from fluxo_p12 import PADROES, argumentos, avalia, mapeia, perfil, prepara
-from mapeador_p12 import guloso
+"""Campanha fatorial em duas passadas, com retomada de execucoes validas."""
+
+import argparse
+import json
+from concurrent.futures import ThreadPoolExecutor
+
+from extrai_p12 import escreve_csv
+from fluxo_p12 import (
+    ERROS_DADOS,
+    MALHAS,
+    PROGRAMAS,
+    adiciona_opcoes,
+    configura,
+)
+from mapeador_p12 import cria_mapa
 from matriz_p12 import le_perfil
 
-FASES = {"vizinhanca": 20000, "dois_grupos": 20000, "uniforme": 5000}
-POLITICAS = [("linear", 0), ("guloso", 0)] + [
-    ("aleatorio", semente) for semente in (11, 22, 33, 44, 55)
-]
+MAPAS = (
+    ("linear", 0),
+    ("guloso", 0),
+    ("aleatorio", 1),
+    ("aleatorio", 2),
+    ("aleatorio", 3),
+)
+PERTURBACOES = (11, 12, 13)
+MAPAS_PYTHON = MAPAS[:2] + tuple(
+    ("aleatorio", s) for s in (11, 22, 33, 44, 55)
+)
 
 
-def campanha(args):
-    perfis = {}
-    mapas = {}
-    for padrao in PADROES:
-        fases = args.fases or FASES[padrao]
-        pasta = args.saida / padrao
-        origem = pasta / "perfil"
-        dados, referencia = perfil(args, origem, padrao, fases)
-        perfis[padrao] = dados, referencia
-        for politica, semente in POLITICAS:
-            mapas[padrao, politica, semente] = mapeia(
-                args, origem, dados, pasta / "mapas", politica, semente,
+def politicas(nucleos, python=False):
+    if python:
+        return MAPAS_PYTHON
+    return MAPAS + (("otimo", 0),) if nucleos == 8 else MAPAS
+
+
+def passada_perfis(pool, fluxo, casos, semente):
+    def prepara(caso):
+        prog, nucleos = caso
+        perfil = fluxo.perfil(prog, nucleos, semente)
+        for politica, semente_mapa in politicas(nucleos, fluxo.m5ops is not None):
+            fluxo.mapeia(perfil, politica, semente_mapa, nucleos)
+
+    list(pool.map(prepara, casos))
+
+
+def mapas_prontos(fluxo, casos, semente):
+    for prog, nucleos in casos:
+        perfil = fluxo.perfil(prog, nucleos, semente, executar=False)
+        assinatura = fluxo.assinatura_perfil(perfil)
+        for politica, semente_mapa in politicas(nucleos, fluxo.m5ops is not None):
+            mapa = (
+                fluxo.saida
+                / "mapas"
+                / (f"{perfil.name}-{politica}-{semente_mapa}-flits.json")
             )
+            dados = json.loads(mapa.read_text())
+            if (
+                dados["perfil_sha256"] != assinatura
+                or dados["perfil"] != str(perfil.resolve())
+                or (dados["linhas"], dados["colunas"]) != MALHAS[nucleos]
+                or dados["politica"] != politica
+                or dados["semente"] != semente_mapa
+                or dados["unidade"] != "flits"
+            ):
+                raise ValueError(
+                    f"mapa desatualizado: {mapa}; refaca os perfis"
+                )
+            yield prog, nucleos, mapa
 
-    linhas = []
-    for padrao in PADROES:
-        fases = args.fases or FASES[padrao]
-        dados, referencia = perfis[padrao]
-        for politica, semente in POLITICAS:
-            arquivo, mapa, previsto = mapas[padrao, politica, semente]
-            pasta = args.saida / padrao / "avaliacoes" / arquivo.stem
-            valores = avalia(
-                args, pasta, padrao, fases, arquivo, mapa, previsto, referencia,
-            )
-            variacao, mesmo_mapa = "", ""
-            if politica == "guloso":
-                novo = le_perfil(pasta)
-                ordem = [novo.nomes.index(nome) for nome in dados.nomes]
-                variacao = sum(
-                    abs(v - novo.matriz[ordem[i]][ordem[j]])
-                    for i, linha in enumerate(dados.matriz)
-                    for j, v in enumerate(linha)
-                ) / sum(map(sum, dados.matriz))
-                mesmo_mapa = guloso(novo, args.nucleos // 4, 4) == mapa
-            linhas.append({
-                "padrao": padrao, "nucleos": args.nucleos, "fases": fases,
-                "linhas_msg": args.linhas_msg, "politica": politica,
-                "semente_mapa": semente, "semente_carga": args.semente,
-                **valores, "variacao_perfil": variacao,
-                "mesmo_mapa_guloso": mesmo_mapa,
-            })
-    with (args.saida / "metricas.csv").open("w", newline="") as saida:
-        grava_csv(saida, linhas)
+
+def passada_avaliacoes(pool, fluxo, mapas, semente_python=None):
+    sementes = (
+        PERTURBACOES if semente_python is None else (semente_python,)
+    )
+    tarefas = [(*caso, semente) for caso in mapas for semente in sementes]
+
+    def avalia(tarefa):
+        return fluxo.avalia(*tarefa, confere_perfil=semente_python is not None)
+
+    return list(pool.map(avalia, tarefas))
+
+
+def estabilidade(pool, fluxo, mapas, semente):
+    def compara(caso):
+        prog, nucleos, mapa = caso
+        dados = json.loads(mapa.read_text())
+        pasta = fluxo.saida / "estabilidade" / f"{prog}-{nucleos}"
+        if fluxo.m5ops is not None:
+            pasta = fluxo.saida / "avaliacao" / mapa.stem / f"perturb-{semente}"
+        fluxo.roda(
+            pasta, prog, nucleos, semente, mapa,
+            executar=fluxo.m5ops is None,
+        )
+        linear = le_perfil(dados["perfil"])
+        guloso = le_perfil(pasta)
+        if set(linear.nomes) != set(guloso.nomes):
+            raise ValueError(f"controladores diferentes: {pasta}")
+        indices = {nome: i for i, nome in enumerate(guloso.nomes)}
+        ordem = [indices[nome] for nome in linear.nomes]
+        diferenca = sum(
+            abs(peso - guloso.matriz[ordem[i]][ordem[j]])
+            for i, linha in enumerate(linear.matriz)
+            for j, peso in enumerate(linha)
+        )
+        segundo = cria_mapa(pasta, "guloso", *MALHAS[nucleos], 0, "flits")
+        return {
+            "programa": prog,
+            "nucleos": nucleos,
+            "semente_perfil": semente,
+            "diferenca_relativa": diferenca / sum(map(sum, linear.matriz)),
+            "mesmo_mapa": segundo["mapa"] == dados["mapa"],
+        }
+
+    gulosos = [
+        caso for caso in mapas if caso[2].stem.endswith("-guloso-0-flits")
+    ]
+    return list(pool.map(compara, gulosos))
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    adiciona_opcoes(ap)
+    ap.add_argument(
+        "--fase", choices=("perfis", "avaliacoes", "todas"), default="todas"
+    )
+    ap.add_argument("--jobs", type=int, default=1)
+    ap.add_argument("--programa", choices=PROGRAMAS, action="append")
+    ap.add_argument("--nucleos", type=int, choices=MALHAS, action="append")
+    ap.add_argument(
+        "--estabilidade",
+        action="store_true",
+        help="gera tambem o segundo perfil (mapa guloso)",
+    )
+    ap.add_argument(
+        "--listar",
+        action="store_true",
+        help="mostra as quantidades sem executar o simulador",
+    )
+    args = ap.parse_args()
+    fluxo = configura(ap, args)
+    if args.jobs < 1:
+        ap.error("--jobs deve ser positivo")
+    python = fluxo.m5ops is not None
+    if not python and args.semente_perfil in PERTURBACOES:
+        ap.error("semente do perfil deve diferir das sementes de avaliacao")
+    if args.estabilidade and args.fase == "perfis":
+        ap.error("--estabilidade requer --fase avaliacoes ou todas")
+    nucleos = sorted(set(args.nucleos or ([16] if python else MALHAS)))
+    casos = [
+        (prog, n)
+        for prog in PROGRAMAS
+        for n in nucleos
+        if not args.programa or prog in args.programa
+    ]
+    n_avaliacoes = sum(len(politicas(n, python)) for _, n in casos)
+    if not python:
+        n_avaliacoes *= len(PERTURBACOES)
+    print(f"{len(casos)} perfis; {n_avaliacoes} avaliacoes", flush=True)
+    if args.listar:
+        return
+    try:
+        with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            if args.fase in ("perfis", "todas"):
+                passada_perfis(pool, fluxo, casos, args.semente_perfil)
+            if args.fase in ("avaliacoes", "todas"):
+                mapas = list(mapas_prontos(fluxo, casos, args.semente_perfil))
+                linhas = passada_avaliacoes(
+                    pool, fluxo, mapas, args.semente_perfil if python else None
+                )
+                escreve_csv(fluxo.saida / "metricas.csv", linhas)
+                if args.estabilidade:
+                    linhas = estabilidade(
+                        pool, fluxo, mapas, args.semente_perfil
+                    )
+                    escreve_csv(fluxo.saida / "estabilidade.csv", linhas)
+    except ERROS_DADOS as erro:
+        ap.exit(1, f"{erro}\n")
 
 
 if __name__ == "__main__":
-    campanha(prepara(argumentos()))
+    main()

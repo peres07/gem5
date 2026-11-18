@@ -1,0 +1,205 @@
+# Copyright (c) 2026 The Project 12 contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+import json
+import shlex
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from campanha_p12 import (
+    PERTURBACOES,
+    estabilidade,
+    mapas_prontos,
+    passada_avaliacoes,
+    passada_perfis,
+    politicas,
+)
+from extrai_p12 import (
+    REDE,
+    confere_saltos,
+    extrai,
+)
+from fluxo_p12 import (
+    MALHAS,
+    PROGRAMAS,
+    Fluxo,
+)
+from matriz_p12 import distancia
+
+
+def grava_execucao(pasta, mapa=None):
+    if mapa is None:
+        mapa = {f"l1_cntrl{i}": i for i in range(8)}
+    (pasta / "p12_nos.csv").write_text(
+        "ni,controlador,roteador\n"
+        + "".join(
+            f"{i},system.ruby.{n},{r}\n"
+            for i, (n, r) in enumerate(sorted(mapa.items()))
+        )
+    )
+    hops = distancia(mapa["l1_cntrl0"], mapa["l1_cntrl1"], 4)
+    (pasta / "stats.txt").write_text(
+        "---------- Begin Simulation Statistics ----------\n"
+        "simTicks 100000\n"
+        f"{REDE}.p12_msgs_l1_cntrl0::l1_cntrl1 100\n"
+        f"{REDE}.p12_flits_l1_cntrl0::l1_cntrl1 500\n"
+        f"{REDE}.packets_injected::total 100\n"
+        f"{REDE}.flits_injected::total 500\n"
+        f"{REDE}.flits_received::total 500\n"
+        f"{REDE}.average_hops {hops}\n"
+        f"{REDE}.average_packet_network_latency 10000\n"
+        f"{REDE}.average_packet_queueing_latency 500\n"
+        "---------- End Simulation Statistics ----------\n"
+        "---------- Begin Simulation Statistics ----------\n"
+        "simTicks 999000\n"
+        "---------- End Simulation Statistics ----------\n"
+    )
+    (pasta / "config.ini").write_text(
+        f"[{REDE}]\nclk_domain=system.ruby.clk_domain\n"
+        "[system.ruby.clk_domain]\nclock=500\n"
+    )
+
+
+def log_valido():
+    return "".join(f"thread={t} cpu={t} soma={t}\n" for t in range(8)) + (
+        "checksum=28 esperado=28\n"
+    )
+
+
+class TesteFluxo(unittest.TestCase):
+    def setUp(self):
+        temporario = TemporaryDirectory()
+        self.addCleanup(temporario.cleanup)
+        self.pasta = Path(temporario.name)
+
+    def test_extracao_e_rejeicao(self):
+        grava_execucao(self.pasta)
+        log = self.pasta / "simulador.log"
+        log.write_text(log_valido())
+        metricas = extrai(self.pasta, 2, 4, limite=0)
+        self.assertEqual(metricas["simTicks"], 100000)
+        self.assertEqual(metricas["latencia_rede_ciclos"], 20)
+        self.assertEqual(metricas["latencia_fila_ciclos"], 1)
+        self.assertEqual(metricas["distancia_medida"], 1)
+        self.assertEqual(metricas["phi"], 1)
+
+        stats = self.pasta / "stats.txt"
+        original = stats.read_text()
+        stats.write_text(
+            original.replace(
+                "flits_injected::total 500", "flits_injected::total 501"
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "conservacao"):
+            extrai(self.pasta, 2, 4)
+        stats.write_text(original)
+        log.write_text(log_valido().replace("cpu=7", "cpu=6"))
+        with self.assertRaisesRegex(ValueError, "thread-CPU"):
+            extrai(self.pasta, 2, 4)
+        log.write_text(log_valido().replace("esperado=28", "esperado=29"))
+        with self.assertRaisesRegex(ValueError, "checksum"):
+            extrai(self.pasta, 2, 4)
+        log.write_text(log_valido())
+        mapa = self.pasta / "mapa.json"
+        mapa.write_text(json.dumps({"linhas": 2, "colunas": 4, "mapa": {}}))
+        with self.assertRaisesRegex(ValueError, "difere do JSON"):
+            extrai(self.pasta, 2, 4, mapa)
+
+    def test_limite_de_transito(self):
+        # Um flit de 4 saltos fica na rede ao final da ROI.
+        confere_saltos(500, 499, 503, Decimal(1), 4, 1)
+        # Injetados e recebidos podem empatar com um flit em cada fronteira.
+        confere_saltos(500, 500, 501, Decimal(1), 4, 1)
+        with self.assertRaisesRegex(ValueError, "average_hops"):
+            confere_saltos(500, 500, 510, Decimal(1), 4, 1)
+
+    def test_duas_passadas_retomada_e_estabilidade(self):
+        gem5 = self.pasta / "gem5.opt"
+        gem5.touch()
+        (self.pasta / "grupos").touch()
+        fluxo = Fluxo(self.pasta / "saida", gem5, self.pasta, 10, 4, 0)
+        casos = [("grupos", 8)]
+
+        def simula(cmd, *, cwd, stdout, **kwargs):
+            pasta = Path(cmd[2])
+            mapa = next(
+                (
+                    s.split("=", 1)[1]
+                    for s in cmd
+                    if s.startswith("--p12-mapa=")
+                ),
+                None,
+            )
+            grava_execucao(
+                pasta,
+                json.loads(Path(mapa).read_text())["mapa"] if mapa else None,
+            )
+            stdout.write(log_valido())
+            return type("Resultado", (), {"returncode": 0})()
+
+        with (
+            patch("fluxo_p12.subprocess.run", side_effect=simula) as run,
+            ThreadPoolExecutor(max_workers=2) as pool,
+        ):
+            passada_perfis(pool, fluxo, casos, 1)
+            mapas = list(mapas_prontos(fluxo, casos, 1))
+            linhas = passada_avaliacoes(pool, fluxo, mapas)
+            self.assertEqual(len(linhas), 18)
+            self.assertEqual(run.call_count, 19)
+            self.assertTrue(
+                all(
+                    l["distancia_prevista"] == l["average_hops"]
+                    for l in linhas
+                )
+            )
+            self.assertEqual(linhas, passada_avaliacoes(pool, fluxo, mapas))
+            self.assertEqual(run.call_count, 19)
+            (Path(linhas[0]["execucao"]) / "stats.txt").unlink()
+            self.assertEqual(linhas, passada_avaliacoes(pool, fluxo, mapas))
+            self.assertEqual(run.call_count, 20)
+            (comparacao,) = estabilidade(pool, fluxo, mapas, 1)
+            self.assertEqual(comparacao["diferenca_relativa"], 0)
+            self.assertTrue(comparacao["mesmo_mapa"])
+
+    def test_comando_python_o3(self):
+        gem5 = self.pasta / "gem5.opt"
+        m5ops = self.pasta / "libm5ops.so"
+        gem5.touch()
+        m5ops.touch()
+        fluxo = Fluxo(
+            self.pasta / "saida", gem5, self.pasta, 3, 2, 0,
+            m5ops=m5ops, python=gem5, helper=gem5,
+        )
+
+        def simula(cmd, *, stdout, **kwargs):
+            self.assertIn("--cpu-type=X86O3CPU", cmd)
+            self.assertIn(f"--p12-helper={gem5}", cmd)
+            opcoes = next(a for a in cmd if a.startswith("--options="))
+            carga = shlex.split(opcoes.partition("=")[2])
+            self.assertEqual(carga[3:5], ["dois_grupos", "3"])
+            self.assertEqual(carga[-2:], ["--m5ops", str(m5ops)])
+            grava_execucao(Path(cmd[2]))
+            stdout.write(log_valido())
+            return type("Resultado", (), {"returncode": 0})()
+
+        with patch("fluxo_p12.subprocess.run", side_effect=simula) as run:
+            fluxo.perfil("grupos", 8, 1)
+            fluxo.perfil("grupos", 8, 1)
+            self.assertEqual(run.call_count, 1)
+            m5ops.write_text("biblioteca alterada")
+            fluxo.perfil("grupos", 8, 1)
+            self.assertEqual(run.call_count, 2)
+        self.assertEqual(len(politicas(16, python=True)), 7)
+
+    def test_tamanho_campanha(self):
+        self.assertEqual(len(PROGRAMAS) * len(MALHAS), 6)
+        total = sum(len(politicas(n)) for n in MALHAS)
+        self.assertEqual(total * len(PROGRAMAS) * len(PERTURBACOES), 99)
+
+
+if __name__ == "__main__":
+    unittest.main()

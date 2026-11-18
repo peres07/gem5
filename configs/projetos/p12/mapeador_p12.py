@@ -6,7 +6,11 @@ import json
 import random
 from pathlib import Path
 
-from matriz_p12 import d_ponderada, distancia, le_perfil
+from matriz_p12 import (
+    d_ponderada,
+    distancia,
+    le_perfil,
+)
 
 
 def moveis_e_fixos(perfil):
@@ -24,7 +28,9 @@ def _dados(perfil, linhas, colunas):
     idx = {n: i for i, n in enumerate(perfil.nomes)}
     fluxo = {
         (a, b): perfil.matriz[idx[a]][idx[b]] + perfil.matriz[idx[b]][idx[a]]
-        for a in moveis for b in moveis if a != b
+        for a in moveis
+        for b in moveis
+        if a != b
     }
     custo_fixo = {
         (a, r): sum(
@@ -32,7 +38,8 @@ def _dados(perfil, linhas, colunas):
             * distancia(r, rf, colunas)
             for f, rf in fixos.items()
         )
-        for a in moveis for r in range(linhas * colunas)
+        for a in moveis
+        for r in range(linhas * colunas)
     }
     return moveis, fixos, fluxo, custo_fixo
 
@@ -77,8 +84,10 @@ def guloso(perfil, linhas, colunas, semente=None):
             livres,
             key=lambda r: (
                 custo_fixo[escolhido, r]
-                + sum(fluxo[escolhido, b] * distancia(r, mapa[b], colunas)
-                      for b in colocados),
+                + sum(
+                    fluxo[escolhido, b] * distancia(r, mapa[b], colunas)
+                    for b in colocados
+                ),
                 abs(r // colunas - (linhas - 1) / 2)
                 + abs(r % colunas - (colunas - 1) / 2),
                 r,
@@ -93,7 +102,8 @@ def guloso(perfil, linhas, colunas, semente=None):
     def custo():
         return sum(custo_fixo[a, mapa[a]] for a in moveis) + sum(
             fluxo[a, b] * distancia(mapa[a], mapa[b], colunas)
-            for i, a in enumerate(moveis) for b in moveis[:i]
+            for i, a in enumerate(moveis)
+            for b in moveis[:i]
         )
 
     atual = custo()
@@ -141,8 +151,33 @@ def confere(mapa, moveis, roteadores):
         raise ValueError("cada roteador precisa receber uma L1")
 
 
-POLITICAS = {"linear": linear, "aleatorio": aleatorio,
-            "guloso": guloso, "otimo": otimo}
+POLITICAS = {
+    "linear": linear,
+    "aleatorio": aleatorio,
+    "guloso": guloso,
+    "otimo": otimo,
+}
+
+
+def cria_mapa(dir_perfil, politica, linhas, colunas, semente, unidade):
+    perfil = le_perfil(dir_perfil, unidade)
+    mapa = POLITICAS[politica](perfil, linhas, colunas, semente)
+    moveis, _ = moveis_e_fixos(perfil)
+    confere(mapa, moveis, linhas * colunas)
+    return {
+        "mapa": mapa,
+        "politica": politica,
+        "semente": semente,
+        "perfil": str(Path(dir_perfil).resolve()),
+        "linhas": linhas,
+        "colunas": colunas,
+        "unidade": unidade,
+        "distancia_prevista": (
+            d_ponderada(perfil, mapa, colunas)
+            if any(map(any, perfil.matriz))
+            else None
+        ),
+    }
 
 
 def main():
@@ -155,20 +190,17 @@ def main():
     ap.add_argument("--unidade", choices=("flits", "msgs"), default="flits")
     ap.add_argument("--saida", required=True)
     args = ap.parse_args()
-    perfil = le_perfil(args.perfil, args.unidade)
-    mapa = POLITICAS[args.politica](perfil, args.linhas, args.colunas,
-                                    args.semente)
-    moveis, _ = moveis_e_fixos(perfil)
-    confere(mapa, moveis, args.linhas * args.colunas)
-    try:
-        custo = d_ponderada(perfil, mapa, args.colunas)
-    except ValueError:
-        custo = None
-    saida = {"mapa": mapa, "politica": args.politica,
-             "semente": args.semente, "perfil": str(Path(args.perfil).resolve()),
-             "linhas": args.linhas, "colunas": args.colunas,
-             "unidade": args.unidade, "distancia_prevista": custo}
-    Path(args.saida).write_text(json.dumps(saida, indent=2, sort_keys=True) + "\n")
+    saida = cria_mapa(
+        args.perfil,
+        args.politica,
+        args.linhas,
+        args.colunas,
+        args.semente,
+        args.unidade,
+    )
+    Path(args.saida).write_text(
+        json.dumps(saida, indent=2, sort_keys=True) + "\n"
+    )
 
 
 if __name__ == "__main__":

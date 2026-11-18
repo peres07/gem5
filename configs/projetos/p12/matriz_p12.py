@@ -13,6 +13,24 @@ class Perfil:
     roteador: dict[str, int]
 
 
+def le_bloco(diretorio, bloco=0):
+    """Le um bloco completo de stats.txt (por padrao, a ROI)."""
+    texto = (Path(diretorio) / "stats.txt").read_text()
+    blocos = re.findall(
+        r"---------- Begin Simulation Statistics ----------(.*?)"
+        r"---------- End Simulation Statistics\s*----------",
+        texto,
+        re.S,
+    )
+    if not 0 <= bloco < len(blocos):
+        raise ValueError("bloco de estatisticas nao encontrado")
+    return {
+        partes[0]: partes[1]
+        for linha in blocos[bloco].splitlines()
+        if len(partes := linha.split()) >= 2
+    }
+
+
 def le_perfil(diretorio, unidade="flits", bloco=0):
     if unidade not in ("flits", "msgs"):
         raise ValueError("unidade deve ser flits ou msgs")
@@ -27,32 +45,26 @@ def le_perfil(diretorio, unidade="flits", bloco=0):
     roteador = {nome: int(no["roteador"]) for nome, no in zip(nomes, nos)}
     matriz = [[0] * len(nomes) for _ in nomes]
     indice = {nome: i for i, nome in enumerate(nomes)}
-    padrao = re.compile(rf"^system\.ruby\.network\.p12_{unidade}_(\w+)::(\w+)$")
-
-    texto = (pasta / "stats.txt").read_text()
-    blocos = re.findall(
-        r"---------- Begin Simulation Statistics ----------(.*?)"
-        r"---------- End Simulation Statistics\s*----------",
-        texto,
-        re.S,
+    padrao = re.compile(
+        rf"^system\.ruby\.network\.p12_{unidade}_(\w+)::(\w+)$"
     )
-    if bloco >= len(blocos) or bloco < 0:
-        raise ValueError("bloco de estatisticas nao encontrado")
-    for linha in blocos[bloco].splitlines():
-        partes = linha.split()
-        if len(partes) < 2:
-            continue
-        achou = padrao.fullmatch(partes[0])
+
+    for chave, valor in le_bloco(pasta, bloco).items():
+        achou = padrao.fullmatch(chave)
         if achou:
             origem, destino = achou.groups()
             if origem not in indice or destino not in indice:
-                raise ValueError(f"controlador desconhecido: {origem}, {destino}")
-            matriz[indice[origem]][indice[destino]] += int(partes[1])
+                raise ValueError(
+                    f"controlador desconhecido: {origem}, {destino}"
+                )
+            matriz[indice[origem]][indice[destino]] = int(valor)
     return Perfil(nomes, matriz, roteador)
 
 
 def distancia(r1, r2, colunas):
-    return abs(r1 // colunas - r2 // colunas) + abs(r1 % colunas - r2 % colunas)
+    return abs(r1 // colunas - r2 // colunas) + abs(
+        r1 % colunas - r2 % colunas
+    )
 
 
 def d_ponderada(perfil, mapa, colunas):

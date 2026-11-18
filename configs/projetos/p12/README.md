@@ -16,32 +16,32 @@ gcc -shared -fPIC -Wl,-z,noexecstack -I include \
     util/m5/src/abi/x86/m5op.S -o util/m5/build/x86/out/libm5ops.so
 ```
 
-Rode primeiro uma entrada curta com perfil linear e avaliação gulosa:
+O argumento `--m5ops` seleciona a carga Python com CPU O3.
+Para testar um perfil linear e uma avaliação gulosa na malha 2×4:
 
 ```sh
-python3 configs/projetos/p12/fluxo_p12.py dois_grupos \
-    --nucleos 8 --fases 3 \
+python3 configs/projetos/p12/fluxo_p12.py grupos 8 \
+    --iteracoes 3 --politica guloso \
     --m5ops util/m5/build/x86/out/libm5ops.so \
-    --saida resultados/p12-teste
+    --saida resultados/p12-python-teste
 ```
 
-A campanha segue a Parte 1: 16 núcleos O3, um perfil por padrão e
-21 avaliações (linear, gulosa e cinco sementes aleatórias por padrão).
-Por padrão, usa 20.000 fases para vizinhança e dois grupos e 5.000 para
-uniforme. Calibre com `--fases` em um diretório separado antes de
-executar a campanha completa.
+A campanha em Python segue a Parte 1: 16 núcleos O3, um perfil por
+padrão e 21 avaliações (linear, gulosa e cinco sementes aleatórias
+por padrão). A semente da carga é a mesma para todas as políticas de
+cada padrão. Por padrão, usa 20.000 fases para vizinhança e dois grupos
+e 5.000 para uniforme. Calibre com `--iteracoes` em um diretório separado.
 
 ```sh
 python3 configs/projetos/p12/campanha_p12.py \
     --m5ops util/m5/build/x86/out/libm5ops.so \
-    --saida resultados/p12-campanha
+    --saida resultados/p12-python --estabilidade
 ```
 
-Cada simulação preserva o comando, `config.ini`, `stats.txt`,
-`simout.txt` e `p12_nos.csv`. O script só marca uma execução como
-concluída após conferir o checksum, as CPUs, as contagens, a distância
-e o mapa solicitado. Use um diretório novo se alterar a configuração
-ou recompilar o simulador. A campanha escreve `metricas.csv`, com
-tempo simulado, distâncias, saltos e latência. Ela também compara o
-perfil linear com o tráfego da avaliação gulosa para verificar a
-estabilidade do mapa.
+Cada execução preserva o comando, `config.ini`, `stats.txt`,
+`simulador.log` e `p12_nos.csv`. O fluxo valida o checksum, as CPUs,
+a conservação do tráfego, os saltos e o mapa aplicado. A campanha
+grava `metricas.csv` e, com `--estabilidade`, `estabilidade.csv`.
+
+O modo C++ usa os mesmos scripts sem `--m5ops`. Consulte
+[workloads/p12/README.md](../../../workloads/p12/README.md).
