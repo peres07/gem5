@@ -172,6 +172,7 @@ class Fluxo:
             (pasta / nome).unlink(missing_ok=True)
         escreve_json(pasta / "execucao.json", assinatura)
         log = pasta / "simulador.log"
+        print(f"Executando {pasta}; log: {log}", flush=True)
         with log.open("w") as arq:
             arq.write(shlex.join(cmd) + "\n")
             arq.flush()
@@ -191,6 +192,7 @@ class Fluxo:
         except ERROS_DADOS as erro:
             raise ValueError(f"execucao invalida em {pasta}: {erro}") from erro
         escreve_json(marco, assinatura)
+        print(f"Validado: {pasta}", flush=True)
         return metricas
 
     def perfil(self, programa, nucleos, semente, executar=True):

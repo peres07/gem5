@@ -3,10 +3,10 @@
 
 """Carga Python com tres padroes de comunicacao em memoria compartilhada."""
 
-import argparse
-import ctypes
-import random
+import sys
 import threading
+from array import array
+from types import SimpleNamespace
 
 
 def destinos(padrao, t, n, sorteio):
@@ -22,25 +22,37 @@ def destinos(padrao, t, n, sorteio):
     return [outro + (outro >= t)]
 
 
+def carrega_m5ops(caminho):
+    if not caminho:
+        return None
+    pasta, _, nome = caminho.rpartition("/")
+    if nome != "_p12_m5.so":
+        raise ValueError("use --m5ops com o arquivo _p12_m5.so")
+    sys.path.insert(0, pasta or ".")
+    try:
+        return __import__("_p12_m5")
+    finally:
+        sys.path.pop(0)
+
+
 def executar(args):
     n, fases, linhas = args.threads, args.fases, args.linhas_msg
-    m5ops = ctypes.CDLL(args.m5ops) if args.m5ops else None
-    libc = ctypes.CDLL(None, use_errno=True)
-    if m5ops:
-        for op in (m5ops.m5_reset_stats, m5ops.m5_dump_stats):
-            op.argtypes = [ctypes.c_uint64, ctypes.c_uint64]
-            op.restype = None
+    m5ops = carrega_m5ops(args.m5ops)
 
-    # Cada thread escreve em linhas de cache so dela.
+    # Alinha o inicio e separa os buffers em linhas de cache de 64 bytes.
     largura = linhas * 8
-    bruto = ctypes.create_string_buffer(n * linhas * 64 + 63)
-    inicio = -ctypes.addressof(bruto) % 64
-    dados = (ctypes.c_uint64 * (n * largura)).from_buffer(bruto, inicio)
+    bruto = array("Q", [0]) * (n * largura + 7)
+    inicio_dados = (-bruto.buffer_info()[0] % 64) // bruto.itemsize
+    dados = memoryview(bruto)[inicio_dados:inicio_dados + n * largura]
 
+    if args.padrao == "uniforme":
+        from random import Random
     leituras = []
     esperado = 0
     for t in range(n):
-        sorteio = random.Random(args.semente * n + t)
+        sorteio = (
+            Random(args.semente * n + t) if args.padrao == "uniforme" else None
+        )
         plano = [destinos(args.padrao, t, n, sorteio) for _ in range(fases)]
         leituras.append(plano)
         esperado += sum(
@@ -51,11 +63,13 @@ def executar(args):
 
     def abre_roi():
         if m5ops:
-            m5ops.m5_reset_stats(0, 0)
+            print("p12: inicio da regiao de interesse", flush=True)
+            m5ops.abre_roi()
 
     def fecha_roi():
         if m5ops:
-            m5ops.m5_dump_stats(0, 0)
+            m5ops.fecha_roi()
+            print("p12: fim da regiao de interesse", flush=True)
 
     inicio = threading.Barrier(n, action=abre_roi)
     troca = threading.Barrier(n)
@@ -65,11 +79,10 @@ def executar(args):
 
     def calcula(t):
         if m5ops:
-            # getcpu direto no Linux x86-64, sem o atalho da libc.
-            cpu = ctypes.c_uint()
-            if libc.syscall(309, ctypes.byref(cpu), None, None) != 0:
-                raise RuntimeError(f"getcpu falhou na thread {t}")
-            cpus[t] = cpu.value
+            try:
+                cpus[t] = m5ops.cpu_atual()
+            except OSError as erro:
+                raise RuntimeError(f"getcpu falhou na thread {t}") from erro
             if cpus[t] != t:
                 raise RuntimeError(f"thread {t} executou na CPU {cpus[t]}")
         inicio.wait()
@@ -97,6 +110,8 @@ def executar(args):
             for barreira in (inicio, troca, fim):
                 barreira.abort()
 
+    if m5ops:
+        print(f"p12: iniciando {n} threads para {args.padrao}", flush=True)
     threads = []
     try:
         for t in range(1, n):
@@ -119,24 +134,38 @@ def executar(args):
         print(f"thread={t} cpu={cpu} soma={somas[t]}")
     soma = sum(somas)
     print(f"checksum={soma} esperado={esperado}", flush=True)
-    return soma == esperado and (not m5ops or cpus == list(range(n)))
+    valido = soma == esperado and (not m5ops or cpus == list(range(n)))
+    if m5ops and valido:
+        m5ops.encerra()
+    return valido
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("padrao", choices=("vizinhanca", "dois_grupos", "uniforme"))
-    ap.add_argument("fases", type=int)
-    ap.add_argument("--threads", type=int, choices=(8, 16), default=16)
-    ap.add_argument("--linhas-msg", type=int, default=1)
-    ap.add_argument("--semente", type=int, default=11)
-    ap.add_argument("--m5ops", help="Biblioteca de operacoes m5 no gem5")
-    args = ap.parse_args()
-    if args.fases < 1 or args.linhas_msg < 1:
-        ap.error("fases e linhas-msg devem ser positivos")
+    uso = ("comunicacao.py PADRAO FASES [--threads N] [--linhas-msg N] "
+           "[--semente N] [--m5ops CAMINHO]")
+    if sys.argv[1:] in (["-h"], ["--help"]):
+        print(uso)
+        return
+    args = SimpleNamespace(threads=16, linhas_msg=1, semente=11, m5ops=None)
     try:
+        padrao, fases, *opcoes = sys.argv[1:]
+        args.padrao, args.fases = padrao, int(fases)
+        campos = ("threads", "linhas_msg", "semente", "m5ops")
+        for opcao, valor in zip(opcoes[::2], opcoes[1::2], strict=True):
+            campo = opcao.removeprefix("--").replace("-", "_")
+            if not opcao.startswith("--") or campo not in campos:
+                raise ValueError(f"opcao invalida: {opcao}")
+            setattr(args, campo, valor if campo == "m5ops" else int(valor))
+        if padrao not in ("vizinhanca", "dois_grupos", "uniforme"):
+            raise ValueError(f"padrao invalido: {padrao}")
+        if args.threads not in (8, 16):
+            raise ValueError("threads deve ser 8 ou 16")
+        if args.fases < 1 or args.linhas_msg < 1:
+            raise ValueError("fases e linhas-msg devem ser positivos")
         valido = executar(args)
-    except (OSError, RuntimeError) as erro:
-        ap.exit(1, f"{erro}\n")
+    except (ImportError, OSError, RuntimeError, ValueError) as erro:
+        print(f"{uso}\n{erro}", file=sys.stderr, flush=True)
+        raise SystemExit(1) from erro
     if not valido:
         raise SystemExit(1)
 

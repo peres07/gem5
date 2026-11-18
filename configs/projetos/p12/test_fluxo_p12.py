@@ -257,12 +257,12 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, sys.argv[1])
 import comunicacao
 lib = Mock()
-lib.syscall.return_value = -1
+lib.cpu_atual.side_effect = OSError("teste")
 args = SimpleNamespace(
     threads=8, fases=1, linhas_msg=1, m5ops="teste",
     semente=1, padrao="vizinhanca",
 )
-with patch.object(comunicacao.ctypes, "CDLL", return_value=lib):
+with patch.object(comunicacao, "carrega_m5ops", return_value=lib):
     comunicacao.executar(args)
 """
         resultado = subprocess.run(

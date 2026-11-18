@@ -7,13 +7,13 @@ fora do simulador.
 O interpretador simulado usa `-S` para evitar a inicialização de
 pacotes de usuário e chamadas do sistema que o modo SE não oferece.
 
-Na raiz do repositório, prepare a biblioteca usada pelo Python simulado
-para marcar a região de interesse:
+Na raiz do repositório, compile a extensão que expõe as operações
+da região de interesse e a identificação da CPU ao Python. Use
+os cabeçalhos da mesma versão de Python que será executada no gem5.
+Após o checksum, a carga pede o encerramento ao simulador fora da região medida.
 
 ```sh
-mkdir -p util/m5/build/x86/out
-gcc -shared -fPIC -Wl,-z,noexecstack -I include \
-    util/m5/src/abi/x86/m5op.S -o util/m5/build/x86/out/libm5ops.so
+make -C workloads/p12 python
 ```
 
 O argumento `--m5ops` seleciona a carga Python com CPU O3.
@@ -22,7 +22,7 @@ Para testar um perfil linear e uma avaliação gulosa na malha 2×4:
 ```sh
 python3 configs/projetos/p12/fluxo_p12.py grupos 8 \
     --iteracoes 3 --politica guloso \
-    --m5ops util/m5/build/x86/out/libm5ops.so \
+    --m5ops build/workloads/p12/_p12_m5.so \
     --saida resultados/p12-python-teste
 ```
 
@@ -34,7 +34,7 @@ e 5.000 para uniforme. Calibre com `--iteracoes` em um diretório separado.
 
 ```sh
 python3 configs/projetos/p12/campanha_p12.py \
-    --m5ops util/m5/build/x86/out/libm5ops.so \
+    --m5ops build/workloads/p12/_p12_m5.so \
     --saida resultados/p12-python --estabilidade
 ```
 
@@ -61,7 +61,9 @@ python3 configs/projetos/p12/analisa_p12.py \
 A opção de coleta controla as matrizes P12 e o CSV dos controladores.
 A revisão do projeto também mudou a leitura funcional do Ruby para
 permitir a leitura dos dados em trânsito durante a criação de threads
-em modo SE. Em X86 SE, a resposta ENOSYS para memfd_create permite\nque a libffi tente a alternativa de arquivo temporário. Essas\nadaptações são independentes da coleta. Compare o binário
+em modo SE. Em X86 SE, a resposta ENOSYS para memfd_create permite
+que a libffi tente a alternativa de arquivo temporário. Essas
+adaptações são independentes da coleta. Compare o binário
 modificado com um binário compilado da mesma revisão-base, usando as
 mesmas opções de build e arquitetura:
 
