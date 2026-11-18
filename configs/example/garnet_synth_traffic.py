@@ -124,6 +124,7 @@ parser.add_argument(
 # Add the ruby specific and protocol specific options
 #
 Ruby.define_options(parser)
+parser.add_argument("--p12-matriz", action="store_true")
 
 args = parser.parse_args()
 
@@ -154,6 +155,10 @@ system.clk_domain = SrcClockDomain(
 )
 
 Ruby.create_system(args, False, system)
+if args.p12_matriz:
+    if args.network != "garnet":
+        parser.error("--p12-matriz requires --network=garnet")
+    system.ruby.network.p12_matriz = True
 
 # Create a seperate clock domain for Ruby
 system.ruby.clk_domain = SrcClockDomain(
