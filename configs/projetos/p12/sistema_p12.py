@@ -61,7 +61,9 @@ for i, cpu in enumerate(system.cpu):
         cmd = [args.p12_helper]
     else:
         cmd = [args.cmd, "--helper"]
-    cpu.workload = Process(pid=100 + i, cmd=cmd)
+    cpu.workload = Process(
+        pid=100 + i, cmd=cmd, env=["GLIBC_TUNABLES=glibc.pthread.rseq=0"]
+    )
     cpu.createThreads()
 
 system.workload = SEWorkload.init_compatible(args.cmd)
