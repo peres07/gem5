@@ -97,7 +97,7 @@ python3 configs/projetos/p12/fluxo_p12.py grupos 8 \
 ```
 
 O terminal mostra a etapa de perfil e a etapa de avaliação. No fim,
-ele exibe tempo simulado em ticks, saltos médios por flit, latência
+ele exibe tempo simulado em milissegundos, saltos médios por flit, latência
 média em ciclos e os checksums. Escolha outro nome em `--saida` para
 refazer as duas simulações ao vivo. O mesmo nome reutiliza os resultados
 validados. Na máquina de desenvolvimento, a execução nova levou 18 s.
@@ -107,11 +107,24 @@ Apresente os gráficos da campanha Python separadamente. Para abrir a pasta
 dos gráficos no Explorador do Windows, rode no WSL:
 
 ```sh
-cd ~/gem5-peres07/resultados/p12-campanha-o3-12/graficos
+cd ~/gem5-peres07/resultados/p12-campanha-o3-12-rapida/graficos
 explorer.exe .
 ```
 
-Para a campanha curta, foram escolhidas 12 iterações por cenário, com
-quatro simulações em paralelo. Ela preserva os três padrões, os 16
+Para a campanha curta, use:
+
+```sh
+python3 configs/projetos/p12/campanha_p12.py \
+    --m5ops build/workloads/p12/_p12_m5.so --aquecimento-rapido \
+    --nucleos 16 --iteracoes 12 --jobs 4 --estabilidade \
+    --saida resultados/p12-campanha-o3-12-rapida
+```
+
+A inicialização rápida usa uma CPU Atomic com acesso direto à memória para
+carregar o Python. Antes de criar as threads, troca todos os núcleos pelo O3.
+A ROI só começa depois dessa troca. O log registra quando a troca ocorre e
+as estatísticas de instruções na ROI ficam nas CPUs O3
+(`system.medicao*`). As CPUs de inicialização ficam inativas.
+A campanha usa 12 iterações por cenário e quatro simulações em paralelo. Ela preserva os três padrões, os 16
 núcleos O3 e os cinco mapas aleatórios. O número de iterações é menor
 que o planejamento original e deve constar no relatório.

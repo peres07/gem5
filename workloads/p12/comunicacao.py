@@ -111,6 +111,8 @@ def executar(args):
                 barreira.abort()
 
     if m5ops:
+        if getattr(args, "aquecimento", 0):
+            m5ops.prepara()
         print(f"p12: iniciando {n} threads para {args.padrao}", flush=True)
     threads = []
     try:
@@ -142,15 +144,17 @@ def executar(args):
 
 def main():
     uso = ("comunicacao.py PADRAO FASES [--threads N] [--linhas-msg N] "
-           "[--semente N] [--m5ops CAMINHO]")
+           "[--semente N] [--m5ops CAMINHO] [--aquecimento 0|1]")
     if sys.argv[1:] in (["-h"], ["--help"]):
         print(uso)
         return
-    args = SimpleNamespace(threads=16, linhas_msg=1, semente=11, m5ops=None)
+    args = SimpleNamespace(
+        threads=16, linhas_msg=1, semente=11, m5ops=None, aquecimento=0,
+    )
     try:
         padrao, fases, *opcoes = sys.argv[1:]
         args.padrao, args.fases = padrao, int(fases)
-        campos = ("threads", "linhas_msg", "semente", "m5ops")
+        campos = ("threads", "linhas_msg", "semente", "m5ops", "aquecimento")
         for opcao, valor in zip(opcoes[::2], opcoes[1::2], strict=True):
             campo = opcao.removeprefix("--").replace("-", "_")
             if not opcao.startswith("--") or campo not in campos:
@@ -162,6 +166,10 @@ def main():
             raise ValueError("threads deve ser 8 ou 16")
         if args.fases < 1 or args.linhas_msg < 1:
             raise ValueError("fases e linhas-msg devem ser positivos")
+        if args.aquecimento not in (0, 1) or (
+            args.aquecimento and not args.m5ops
+        ):
+            raise ValueError("aquecimento deve ser 0 ou 1 e requer m5ops")
         valido = executar(args)
     except (ImportError, OSError, RuntimeError, ValueError) as erro:
         print(f"{uso}\n{erro}", file=sys.stderr, flush=True)

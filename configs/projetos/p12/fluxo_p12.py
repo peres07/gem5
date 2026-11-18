@@ -63,8 +63,9 @@ class Fluxo:
     limite: int = TRANSITO_PADRAO
     m5ops: Path | None = None
     python: Path = Path("/usr/bin/python3")
-    helper: Path = Path("/usr/bin/true")
+    helper: Path | None = None
     cpu_cpp: str = "X86TimingSimpleCPU"
+    aquecimento_rapido: bool = False
 
     def roda(
         self,
@@ -88,21 +89,27 @@ class Fluxo:
             cpu = "X86O3CPU"
             padrao = "dois_grupos" if programa == "grupos" else programa
             fases = self.iteracoes or FASES_PYTHON[programa]
-            opcoes = shlex.join([
+            opcoes = [
                 "-B", "-S", str(CARGA_PYTHON), padrao, str(fases),
                 "--threads", str(nucleos),
                 "--linhas-msg", str(self.linhas_mensagem),
                 "--semente", str(semente),
                 "--m5ops", str(self.m5ops),
-            ])
+            ]
             extra = [
-                f"--p12-helper={self.helper.resolve()}",
+                "--p12-python",
                 "--sys-clock=2GHz", "--ruby-clock=2GHz",
                 "--mem-size=4GiB", "--mem-type=DDR3_1600_8x8",
                 "--l1i_size=32KiB", "--l1d_size=32KiB",
                 "--l1i_assoc=4", "--l1d_assoc=4",
                 "--l2_size=512KiB", "--l2_assoc=8",
             ]
+            if self.aquecimento_rapido:
+                extra.append("--p12-aquecimento-rapido")
+                opcoes.extend(("--aquecimento", "1"))
+            opcoes = shlex.join(opcoes)
+            if self.helper is not None:
+                extra.append(f"--p12-helper={self.helper.resolve()}")
         linhas, colunas = MALHAS[nucleos]
         cmd = [
             str(gem5),
@@ -144,7 +151,10 @@ class Fluxo:
         if self.m5ops is not None:
             assinatura["carga_python"] = digest(CARGA_PYTHON)
             assinatura["m5ops"] = digest(self.m5ops)
-            assinatura["helper"] = identidade_executavel(self.helper.resolve())
+            if self.helper is not None:
+                assinatura["helper"] = identidade_executavel(
+                    self.helper.resolve()
+                )
         def confere_saida():
             if coleta:
                 return extrai(pasta, linhas, colunas, mapa, self.limite)
@@ -234,6 +244,7 @@ class Fluxo:
         return {
             "programa": programa,
             "carga": "python" if self.m5ops else "cpp",
+            "aquecimento_rapido": self.aquecimento_rapido,
             "nucleos": nucleos,
             "linhas": dados["linhas"],
             "colunas": dados["colunas"],
@@ -260,7 +271,11 @@ def adiciona_opcoes(ap):
         default="X86TimingSimpleCPU",
     )
     ap.add_argument("--python", type=Path, default=Path("/usr/bin/python3"))
-    ap.add_argument("--helper", type=Path, default=Path("/usr/bin/true"))
+    ap.add_argument("--helper", type=Path)
+    ap.add_argument(
+        "--aquecimento-rapido", action="store_true",
+        help="inicializa o Python em Atomic e mede a regiao em O3",
+    )
     ap.add_argument("--semente-perfil", type=int, default=1)
     ap.add_argument("--flits-transito", type=int, default=TRANSITO_PADRAO)
 
@@ -273,6 +288,8 @@ def configura(ap, args):
         ap.error("iteracoes e linhas por mensagem devem ser uint32 positivos")
     if not 0 <= args.semente_perfil < 2**64 or args.flits_transito < 0:
         ap.error("semente deve ser uint64 e flits-transito nao negativo")
+    if args.aquecimento_rapido and (not args.m5ops or args.helper):
+        ap.error("--aquecimento-rapido requer --m5ops e nao usa --helper")
     pasta_padrao = "m5out/p12-python" if args.m5ops else "m5out/p12"
     saida = args.saida or ROOT / pasta_padrao
     return Fluxo(
@@ -284,8 +301,9 @@ def configura(ap, args):
         args.flits_transito,
         args.m5ops.resolve() if args.m5ops else None,
         args.python.resolve(),
-        args.helper.resolve(),
+        args.helper.resolve() if args.helper else None,
         args.cpu_cpp,
+        args.aquecimento_rapido,
     )
 
 
@@ -331,11 +349,15 @@ def main():
             anterior = extrai(perfil, *MALHAS[args.nucleos], limite=fluxo.limite)
             print(f"\n{'Métrica':<33} {'Linear':>14} {args.politica:>14}")
             for chave, rotulo in (
-                ("simTicks", "Tempo da região medida (ticks)"),
+                ("simTicks", "Tempo simulado (ms)"),
                 ("average_hops", "Saltos médios por flit"),
                 ("latencia_rede_ciclos", "Latência de rede (ciclos)"),
             ):
-                print(f"{rotulo:<33} {anterior[chave]:14.6g} {linha[chave]:14.6g}")
+                a, b = anterior[chave], linha[chave]
+                if chave == "simTicks":
+                    a *= 1000 / int(le_bloco(perfil)["simFreq"])
+                    b *= 1000 / int(le_bloco(Path(linha["execucao"]))["simFreq"])
+                print(f"{rotulo:<33} {a:14.6f} {b:14.6f}")
             print(f"Checksum linear={anterior['checksum']} "
                   f"{args.politica}={linha['checksum']}")
     except ERROS_DADOS as erro:

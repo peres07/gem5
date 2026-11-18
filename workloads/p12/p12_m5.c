@@ -38,7 +38,15 @@ encerra(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+prepara(PyObject *self, PyObject *args)
+{
+    m5_work_begin(0, 0);
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef metodos[] = {
+    {"prepara", prepara, METH_NOARGS, NULL},
     {"cpu_atual", cpu_atual, METH_NOARGS, NULL},
     {"abre_roi", abre_roi, METH_NOARGS, NULL},
     {"fecha_roi", fecha_roi, METH_NOARGS, NULL},
