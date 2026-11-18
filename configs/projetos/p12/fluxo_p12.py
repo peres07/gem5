@@ -64,6 +64,7 @@ class Fluxo:
     m5ops: Path | None = None
     python: Path = Path("/usr/bin/python3")
     helper: Path = Path("/usr/bin/true")
+    cpu_cpp: str = "X86TimingSimpleCPU"
 
     def roda(
         self,
@@ -79,7 +80,7 @@ class Fluxo:
         pasta = pasta.resolve()
         gem5 = self.gem5.resolve()
         binario = (self.workloads / programa).resolve()
-        cpu = "X86TimingSimpleCPU"
+        cpu = self.cpu_cpp
         opcoes = f"{nucleos} {self.iteracoes} {self.linhas_mensagem} {semente}"
         extra = []
         if self.m5ops is not None:
@@ -254,6 +255,10 @@ def adiciona_opcoes(ap):
     ap.add_argument("--iteracoes", type=int)
     ap.add_argument("--linhas-mensagem", type=int)
     ap.add_argument("--m5ops", type=Path, help="usa a carga Python com CPU O3")
+    ap.add_argument(
+        "--cpu-cpp", choices=("X86TimingSimpleCPU", "X86O3CPU"),
+        default="X86TimingSimpleCPU",
+    )
     ap.add_argument("--python", type=Path, default=Path("/usr/bin/python3"))
     ap.add_argument("--helper", type=Path, default=Path("/usr/bin/true"))
     ap.add_argument("--semente-perfil", type=int, default=1)
@@ -280,6 +285,7 @@ def configura(ap, args):
         args.m5ops.resolve() if args.m5ops else None,
         args.python.resolve(),
         args.helper.resolve(),
+        args.cpu_cpp,
     )
 
 
@@ -292,6 +298,8 @@ def main():
     ap.add_argument("--semente-mapa", type=int, default=1)
     ap.add_argument("--semente-perturbacao", type=int)
     ap.add_argument("--unidade", choices=("flits", "msgs"), default="flits")
+    ap.add_argument("--resumo", action="store_true",
+                    help="compara o resultado com o perfil linear")
     args = ap.parse_args()
     fluxo = configura(ap, args)
     semente = args.semente_perturbacao
@@ -315,10 +323,21 @@ def main():
             args.nucleos,
             mapa,
             semente,
-            confere_perfil=bool(args.m5ops and semente == args.semente_perfil),
+            confere_perfil=(semente == args.semente_perfil),
         )
         saida = Path(linha["execucao"]) / "metricas.csv"
         escreve_csv(saida, [linha])
+        if args.resumo:
+            anterior = extrai(perfil, *MALHAS[args.nucleos], limite=fluxo.limite)
+            print(f"\n{'Métrica':<33} {'Linear':>14} {args.politica:>14}")
+            for chave, rotulo in (
+                ("simTicks", "Tempo da região medida (ticks)"),
+                ("average_hops", "Saltos médios por flit"),
+                ("latencia_rede_ciclos", "Latência de rede (ciclos)"),
+            ):
+                print(f"{rotulo:<33} {anterior[chave]:14.6g} {linha[chave]:14.6g}")
+            print(f"Checksum linear={anterior['checksum']} "
+                  f"{args.politica}={linha['checksum']}")
     except ERROS_DADOS as erro:
         ap.exit(1, f"{erro}\n")
     print(saida)

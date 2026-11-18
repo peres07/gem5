@@ -78,3 +78,40 @@ O teste X86 usa as cargas C++ por padrão. Para testar Python com O3,
 acrescente `--m5ops` e use um diretório de saída separado. Se a base
 falhar na criação de threads, guarde o log e registre o resultado como
 diferença de compatibilidade. A validação sintética não cobre esse caso.
+
+## Demonstração ao vivo
+
+Compile os programas de demonstração antes da apresentação:
+
+```sh
+make -C workloads/p12
+```
+
+Na apresentação, rode uma comparação curta em uma saída nova:
+
+```sh
+python3 configs/projetos/p12/fluxo_p12.py grupos 8 \
+    --cpu-cpp X86O3CPU --iteracoes 3 --politica guloso \
+    --semente-perfil 11 --semente-perturbacao 11 \
+    --saida resultados/p12-ao-vivo --resumo
+```
+
+O terminal mostra a etapa de perfil e a etapa de avaliação. No fim,
+ele exibe tempo simulado em ticks, saltos médios por flit, latência
+média em ciclos e os checksums. Escolha outro nome em `--saida` para
+refazer as duas simulações ao vivo. O mesmo nome reutiliza os resultados
+validados. Na máquina de desenvolvimento, a execução nova levou 18 s.
+
+A demonstração usa a carga C++ para reduzir a espera pelo interpretador.
+Apresente os gráficos da campanha Python separadamente. Para abrir a pasta
+dos gráficos no Explorador do Windows, rode no WSL:
+
+```sh
+cd ~/gem5-peres07/resultados/p12-campanha-o3-12/graficos
+explorer.exe .
+```
+
+Para a campanha curta, foram escolhidas 12 iterações por cenário, com
+quatro simulações em paralelo. Ela preserva os três padrões, os 16
+núcleos O3 e os cinco mapas aleatórios. O número de iterações é menor
+que o planejamento original e deve constar no relatório.
