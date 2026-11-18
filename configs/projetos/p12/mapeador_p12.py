@@ -21,8 +21,13 @@ def moveis_e_fixos(perfil):
 
 def _dados(perfil, linhas, colunas):
     moveis, fixos = moveis_e_fixos(perfil)
-    if len(moveis) != linhas * colunas:
-        raise ValueError("precisa haver uma L1 por roteador")
+    if (
+        linhas <= 0
+        or colunas <= 0
+        or set(moveis) != {f"l1_cntrl{i}" for i in range(linhas * colunas)}
+    ):
+        raise ValueError("a malha precisa de uma L1 numerada por roteador")
+    moveis.sort(key=lambda a: int(a.removeprefix("l1_cntrl")))
     if any(r < 0 or r >= linhas * colunas for r in fixos.values()):
         raise ValueError("roteador fixo fora da malha")
     idx = {n: i for i, n in enumerate(perfil.nomes)}
@@ -63,8 +68,8 @@ def aleatorio(perfil, linhas, colunas, semente):
     return fixos | dict(zip(moveis, posicoes))
 
 
-def guloso(perfil, linhas, colunas, semente=None):
-    moveis, fixos, fluxo, custo_fixo = _dados(perfil, linhas, colunas)
+def _constroi_guloso(dados, linhas, colunas):
+    moveis, fixos, fluxo, custo_fixo = dados
     mapa = dict(fixos)
     livres = set(range(linhas * colunas))
     restantes = set(moveis)
@@ -97,8 +102,19 @@ def guloso(perfil, linhas, colunas, semente=None):
         restantes.remove(escolhido)
         livres.remove(pos)
 
-    # P12: trocas locais corrigem casos em que ocupar o centro cedo
-    # deixa o segundo grupo espalhado; 16 L1 ainda e barato.
+    return mapa
+
+
+def guloso(perfil, linhas, colunas, semente=None):
+    return _constroi_guloso(_dados(perfil, linhas, colunas), linhas, colunas)
+
+
+def guloso_trocas(perfil, linhas, colunas, semente=None):
+    """Extensao da secao 21.13, fora da campanha principal."""
+    dados = _dados(perfil, linhas, colunas)
+    moveis, _, fluxo, custo_fixo = dados
+    mapa = _constroi_guloso(dados, linhas, colunas)
+
     def custo():
         return sum(custo_fixo[a, mapa[a]] for a in moveis) + sum(
             fluxo[a, b] * distancia(mapa[a], mapa[b], colunas)
@@ -155,6 +171,7 @@ POLITICAS = {
     "linear": linear,
     "aleatorio": aleatorio,
     "guloso": guloso,
+    "guloso-trocas": guloso_trocas,
     "otimo": otimo,
 }
 

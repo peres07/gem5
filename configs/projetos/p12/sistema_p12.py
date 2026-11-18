@@ -34,6 +34,10 @@ if args.num_l2caches != args.num_cpus or args.num_dirs != args.num_cpus:
     ap.error("L2 e diretorios devem ter um banco por nucleo")
 if args.network != "garnet":
     ap.error("use --network=garnet")
+if args.p12_mapa and args.topology != "MeshMapeada":
+    ap.error("--p12-mapa requer --topology=MeshMapeada")
+if args.routing_algorithm != 1:
+    ap.error("o Projeto 12 requer roteamento XY (--routing-algorithm=1)")
 if args.cacheline_size != 64:
     ap.error("os workloads p12 usam linhas de cache de 64 bytes")
 if args.cpu_type not in ("X86TimingSimpleCPU", "X86O3CPU"):

@@ -59,7 +59,14 @@ class Fluxo:
     limite: int = TRANSITO_PADRAO
 
     def roda(
-        self, pasta, programa, nucleos, semente, mapa=None, executar=True
+        self,
+        pasta,
+        programa,
+        nucleos,
+        semente,
+        mapa=None,
+        executar=True,
+        topologia="MeshMapeada",
     ):
         pasta = pasta.resolve()
         gem5 = self.gem5.resolve()
@@ -72,7 +79,7 @@ class Fluxo:
             str(SISTEMA),
             "--cpu-type=X86TimingSimpleCPU",
             "--network=garnet",
-            "--topology=MeshMapeada",
+            f"--topology={topologia}",
             "--routing-algorithm=1",
             "--router-latency=1",
             "--link-latency=1",
