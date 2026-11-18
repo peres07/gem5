@@ -1,8 +1,13 @@
 # Copyright (c) 2026 The Project 12 contributors
 # SPDX-License-Identifier: BSD-3-Clause
 
+import csv
+import io
 import json
 import shlex
+import subprocess
+import sys
+from io import StringIO
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
@@ -10,6 +15,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from analisa_p12 import agrega
 from campanha_p12 import (
     PERTURBACOES,
     estabilidade,
@@ -29,6 +35,12 @@ from fluxo_p12 import (
     Fluxo,
 )
 from matriz_p12 import distancia
+from valida_sintetico_p12 import (
+    LADO,
+    NOS,
+    PACOTES,
+    valida,
+)
 
 
 def grava_execucao(pasta, mapa=None):
@@ -95,6 +107,10 @@ class TesteFluxo(unittest.TestCase):
             )
         )
         with self.assertRaisesRegex(ValueError, "conservacao"):
+            extrai(self.pasta, 2, 4)
+        marcador = "---------- Begin Simulation Statistics ----------"
+        stats.write_text(original[:original.rfind(marcador)])
+        with self.assertRaisesRegex(ValueError, "dump da ROI"):
             extrai(self.pasta, 2, 4)
         stats.write_text(original)
         log.write_text(log_valido().replace("cpu=7", "cpu=6"))
@@ -199,6 +215,120 @@ class TesteFluxo(unittest.TestCase):
         self.assertEqual(len(PROGRAMAS) * len(MALHAS), 6)
         total = sum(len(politicas(n)) for n in MALHAS)
         self.assertEqual(total * len(PROGRAMAS) * len(PERTURBACOES), 99)
+
+    def test_analise_pareada(self):
+        arq = io.StringIO()
+        writer = csv.writer(arq)
+        writer.writerow(
+            [
+                "programa",
+                "nucleos",
+                "unidade_mapa",
+                "politica",
+                "semente_mapa",
+                "semente_perturbacao",
+                "simTicks",
+                "average_hops",
+                "distancia_prevista",
+                "distancia_medida",
+                "latencia_rede_ciclos",
+            ]
+        )
+        for p, m in politicas(8):
+            for s in PERTURBACOES:
+                base = s * 100
+                ticks = base // 2 if p == "guloso" else base
+                writer.writerow(
+                    ["grupos", 8, "flits", p, m, s, ticks, 2, 2, 2, 5]
+                )
+        arq.seek(0)
+        dados = {r["politica"]: r for r in agrega(arq)}
+        self.assertEqual(dados["guloso"]["tempo"], 0.5)
+        self.assertEqual(dados["guloso"]["erro_tempo"], (0, 0))
+        self.assertEqual(dados["guloso"]["reducao_tempo"], 50)
+
+    def test_carga_python_falha_sem_prender_barreira(self):
+        raiz = Path(__file__).resolve().parents[3]
+        carga = raiz / "workloads/p12"
+        programa = """
+import sys
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+sys.path.insert(0, sys.argv[1])
+import comunicacao
+lib = Mock()
+lib.syscall.return_value = -1
+args = SimpleNamespace(
+    threads=8, fases=1, linhas_msg=1, m5ops="teste",
+    semente=1, padrao="vizinhanca",
+)
+with patch.object(comunicacao.ctypes, "CDLL", return_value=lib):
+    comunicacao.executar(args)
+"""
+        resultado = subprocess.run(
+            ["python3", "-B", "-c", programa, str(carga)],
+            timeout=5, capture_output=True, text=True,
+        )
+        self.assertNotEqual(resultado.returncode, 0)
+        self.assertIn("getcpu falhou", resultado.stderr)
+
+    def test_analise_python_cinco_mapas(self):
+        arq = StringIO()
+        writer = csv.writer(arq)
+        writer.writerow(
+            "programa,nucleos,carga,unidade_mapa,politica,semente_mapa,"
+            "semente_perturbacao,simTicks,average_hops,distancia_prevista,"
+            "distancia_medida,latencia_rede_ciclos".split(",")
+        )
+        tempos = [200, 180, 100, 120, 140, 160, 180]
+        for (p, m), ticks in zip(politicas(16, python=True), tempos):
+            writer.writerow(
+                ["grupos", 16, "python", "flits", p, m, 1, ticks, 2, 2, 2, 5]
+            )
+        arq.seek(0)
+        dados = {r["politica"]: r for r in agrega(arq)}
+        self.assertAlmostEqual(dados["aleatorio"]["tempo"], 0.7)
+        minimo, maximo = dados["aleatorio"]["erro_tempo"]
+        self.assertAlmostEqual(minimo, 0.2)
+        self.assertAlmostEqual(maximo, 0.2)
+
+    def test_transposicao_sintetica(self):
+        nos = self.pasta / "p12_nos.csv"
+        nomes = [
+            f"{tipo}_cntrl{i}" for tipo in ("l1", "dir") for i in range(NOS)
+        ]
+        nos.write_text(
+            "ni,controlador,roteador\n"
+            + "".join(
+                f"{i},system.ruby.{nome},{i % NOS}\n"
+                for i, nome in enumerate(nomes)
+            )
+        )
+        regs = []
+        for x in range(LADO):
+            for y in range(LADO):
+                par = f"l1_cntrl{y * LADO + x}::dir_cntrl{x * LADO + y}"
+                regs.append(f"{REDE}.p12_msgs_{par} {PACOTES}\n")
+                regs.append(f"{REDE}.p12_flits_{par} {5 * PACOTES}\n")
+        total = PACOTES * NOS
+        stats = self.pasta / "stats.txt"
+        texto = (
+            "---------- Begin Simulation Statistics ----------\n"
+            + "".join(regs)
+            + f"{REDE}.packets_injected::total {total}\n"
+            + f"{REDE}.flits_injected::total {5 * total}\n"
+            + f"{REDE}.flits_received::total {5 * total}\n"
+            + f"{REDE}.average_hops 2.5\n"
+            + "---------- End Simulation Statistics ----------\n"
+        )
+        stats.write_text(texto)
+        valida(self.pasta, "transpose", 2)
+        # Conservacao ainda vale ao deslocar uma celula para destino errado.
+        stats.write_text(
+            texto.replace("l1_cntrl0::dir_cntrl0", "l1_cntrl0::dir_cntrl1")
+        )
+        with self.assertRaisesRegex(ValueError, "matriz msgs inesperada"):
+            valida(self.pasta, "transpose", 2)
 
 
 if __name__ == "__main__":

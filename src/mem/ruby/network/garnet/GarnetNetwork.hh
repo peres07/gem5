@@ -33,6 +33,7 @@
 #define __MEM_RUBY_NETWORK_GARNET_0_GARNETNETWORK_HH__
 
 #include <iostream>
+#include <optional> // P12
 #include <vector>
 
 #include "mem/ruby/network/Network.hh"
@@ -207,10 +208,11 @@ class GarnetNetwork : public Network
     std::vector<std::vector<statistics::Scalar *>> m_ctrl_traffic_distribution;
     // P12
     bool m_p12_matriz;
-    statistics::Vector2d m_p12_msgs;
-    statistics::Vector2d m_p12_flits;
+    std::optional<statistics::Vector2d> m_p12_msgs;
+    std::optional<statistics::Vector2d> m_p12_flits;
 
   private:
+    NodeID p12IdLocal(const BasicExtLink *link) const; // P12
     GarnetNetwork(const GarnetNetwork& obj);
     GarnetNetwork& operator=(const GarnetNetwork& obj);
 

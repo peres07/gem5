@@ -1,3 +1,6 @@
+# Copyright (c) 2026 The Project 12 contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Carga Python com tres padroes de comunicacao em memoria compartilhada."""
 
 import argparse
@@ -60,12 +63,15 @@ def executar(args):
     somas = [0] * n
     cpus = [None] * n
 
-    def trabalho(t):
+    def calcula(t):
         if m5ops:
             # getcpu direto no Linux x86-64, sem o atalho da libc.
             cpu = ctypes.c_uint()
-            if libc.syscall(309, ctypes.byref(cpu), None, None) == 0:
-                cpus[t] = cpu.value
+            if libc.syscall(309, ctypes.byref(cpu), None, None) != 0:
+                raise RuntimeError(f"getcpu falhou na thread {t}")
+            cpus[t] = cpu.value
+            if cpus[t] != t:
+                raise RuntimeError(f"thread {t} executou na CPU {cpus[t]}")
         inicio.wait()
         total = 0
         for fase, pares in enumerate(leituras[t]):
@@ -79,12 +85,35 @@ def executar(args):
         fim.wait()
         somas[t] = total
 
-    threads = [threading.Thread(target=trabalho, args=(t,)) for t in range(1, n)]
-    for thread in threads:
-        thread.start()
-    trabalho(0)
-    for thread in threads:
-        thread.join()
+    erros = [None] * n
+
+    def trabalho(t):
+        try:
+            calcula(t)
+        except threading.BrokenBarrierError:
+            return  # A falha da outra thread ja interrompeu a rodada.
+        except Exception as erro:
+            erros[t] = erro
+            for barreira in (inicio, troca, fim):
+                barreira.abort()
+
+    threads = []
+    try:
+        for t in range(1, n):
+            thread = threading.Thread(target=trabalho, args=(t,))
+            thread.start()
+            threads.append(thread)
+        trabalho(0)
+    except RuntimeError:
+        for barreira in (inicio, troca, fim):
+            barreira.abort()
+        raise
+    finally:
+        for thread in threads:
+            thread.join()
+    for erro in erros:
+        if erro is not None:
+            raise RuntimeError(str(erro)) from erro
 
     for t, cpu in enumerate(cpus):
         print(f"thread={t} cpu={cpu} soma={somas[t]}")
@@ -104,7 +133,11 @@ def main():
     args = ap.parse_args()
     if args.fases < 1 or args.linhas_msg < 1:
         ap.error("fases e linhas-msg devem ser positivos")
-    if not executar(args):
+    try:
+        valido = executar(args)
+    except (OSError, RuntimeError) as erro:
+        ap.exit(1, f"{erro}\n")
+    if not valido:
         raise SystemExit(1)
 
 

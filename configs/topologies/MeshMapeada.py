@@ -1,3 +1,6 @@
+# Copyright (c) 2026 The Project 12 contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Mesh_XY com posicoes configuraveis para controladores L1."""
 
 import json
@@ -17,20 +20,36 @@ class MeshMapeada(Mesh_XY):
             return
 
         dados = json.loads(Path(arquivo).read_text())
+        if not isinstance(dados, dict):
+            raise ValueError("P12: o arquivo de mapeamento deve ser um objeto")
         mapa = dados.get("mapa")
         if not isinstance(mapa, dict):
             raise ValueError("P12: JSON sem objeto 'mapa'")
+        dimensoes = (options.mesh_rows, options.num_cpus // options.mesh_rows)
+        if ("linhas" in dados or "colunas" in dados) and (
+            dados.get("linhas"),
+            dados.get("colunas"),
+        ) != dimensoes:
+            raise ValueError("P12: dimensoes do mapa nao correspondem a malha")
         base = {
-            link.ext_node.path().rsplit(".", 1)[-1]: int(link.int_node.router_id)
+            link.ext_node.path().rsplit(".", 1)[-1]: int(
+                link.int_node.router_id
+            )
             for link in network.ext_links
         }
         if set(mapa) != set(base):
-            raise ValueError("P12: mapa deve conter todos os controladores, sem extras")
+            raise ValueError(
+                "P12: mapa deve conter todos os controladores, sem extras"
+            )
         l1 = [nome for nome in base if nome.startswith("l1_cntrl")]
         if len(l1) != options.num_cpus:
-            raise ValueError("P12: numero de L1 diferente do numero de nucleos")
-        if any(type(r) is not int or r < 0 or r >= options.num_cpus
-               for r in mapa.values()):
+            raise ValueError(
+                "P12: numero de L1 diferente do numero de nucleos"
+            )
+        if any(
+            type(r) is not int or r < 0 or r >= options.num_cpus
+            for r in mapa.values()
+        ):
             raise ValueError("P12: roteador invalido no mapa")
         if any(mapa[nome] != base[nome] for nome in base if nome not in l1):
             raise ValueError("P12: apenas controladores L1 podem mudar")

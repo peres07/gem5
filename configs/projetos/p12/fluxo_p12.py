@@ -22,6 +22,7 @@ from mapeador_p12 import (
     POLITICAS,
     cria_mapa,
 )
+from matriz_p12 import le_bloco
 
 ROOT = Path(__file__).resolve().parents[3]
 CARGA_PYTHON = ROOT / "workloads/p12/comunicacao.py"
@@ -65,7 +66,15 @@ class Fluxo:
     helper: Path = Path("/usr/bin/true")
 
     def roda(
-        self, pasta, programa, nucleos, semente, mapa=None, executar=True
+        self,
+        pasta,
+        programa,
+        nucleos,
+        semente,
+        mapa=None,
+        executar=True,
+        topologia="MeshMapeada",
+        coleta=True,
     ):
         pasta = pasta.resolve()
         gem5 = self.gem5.resolve()
@@ -88,7 +97,8 @@ class Fluxo:
             extra = [
                 f"--p12-helper={self.helper.resolve()}",
                 "--sys-clock=2GHz", "--ruby-clock=2GHz",
-                "--mem-size=4GiB", "--l1i_size=32KiB", "--l1d_size=32KiB",
+                "--mem-size=4GiB", "--mem-type=DDR3_1600_8x8",
+                "--l1i_size=32KiB", "--l1d_size=32KiB",
                 "--l1i_assoc=4", "--l1d_assoc=4",
                 "--l2_size=512KiB", "--l2_assoc=8",
             ]
@@ -100,7 +110,7 @@ class Fluxo:
             str(SISTEMA),
             f"--cpu-type={cpu}",
             "--network=garnet",
-            "--topology=MeshMapeada",
+            f"--topology={topologia}",
             "--routing-algorithm=1",
             "--router-latency=1",
             "--link-latency=1",
@@ -109,11 +119,14 @@ class Fluxo:
             f"--num-dirs={nucleos}",
             f"--num-l2caches={nucleos}",
             f"--mesh-rows={linhas}",
-            "--p12-matriz",
             f"--cmd={binario}",
             f"--options={opcoes}",
             *extra,
         ]
+        if coleta:
+            cmd.append("--p12-matriz")
+        elif mapa is not None:
+            raise ValueError("a comparacao sem coleta usa apenas o mapa linear")
         if mapa is not None:
             mapa = mapa.resolve()
             cmd.append(f"--p12-mapa={mapa}")
@@ -131,10 +144,21 @@ class Fluxo:
             assinatura["carga_python"] = digest(CARGA_PYTHON)
             assinatura["m5ops"] = digest(self.m5ops)
             assinatura["helper"] = identidade_executavel(self.helper.resolve())
+        def confere_saida():
+            if coleta:
+                return extrai(pasta, linhas, colunas, mapa, self.limite)
+            stats = le_bloco(pasta)
+            le_bloco(pasta, 1)
+            if (pasta / "p12_nos.csv").exists() or any(
+                k.startswith("system.ruby.network.p12_") for k in stats
+            ):
+                raise ValueError("coleta desligada produziu artefatos P12")
+            return {"checksum": confere_log(pasta, nucleos)}
+
         marco = pasta / "concluido.json"
         try:
             if json.loads(marco.read_text()) == assinatura:
-                return extrai(pasta, linhas, colunas, mapa, self.limite)
+                return confere_saida()
         except ERROS_DADOS:
             pass
         if not executar:
@@ -163,7 +187,7 @@ class Fluxo:
                 f"gem5 retornou {resultado.returncode}; veja {log}"
             )
         try:
-            metricas = extrai(pasta, linhas, colunas, mapa, self.limite)
+            metricas = confere_saida()
         except ERROS_DADOS as erro:
             raise ValueError(f"execucao invalida em {pasta}: {erro}") from erro
         escreve_json(marco, assinatura)
@@ -174,13 +198,13 @@ class Fluxo:
         self.roda(pasta, programa, nucleos, semente, executar=executar)
         return pasta
 
+    def caminho_mapa(self, dir_perfil, politica, semente, unidade):
+        nome = f"{dir_perfil.name}-{politica}-{semente}-{unidade}.json"
+        return self.saida / "mapas" / nome
+
     def mapeia(self, dir_perfil, politica, semente, nucleos, unidade="flits"):
         linhas, colunas = MALHAS[nucleos]
-        caminho = (
-            self.saida
-            / "mapas"
-            / (f"{dir_perfil.name}-{politica}-{semente}-{unidade}.json")
-        )
+        caminho = self.caminho_mapa(dir_perfil, politica, semente, unidade)
         mapa = cria_mapa(
             dir_perfil, politica, linhas, colunas, semente, unidade
         )
@@ -206,6 +230,7 @@ class Fluxo:
                 raise ValueError(f"{pasta}: checksum difere do perfil")
         return {
             "programa": programa,
+            "carga": "python" if self.m5ops else "cpp",
             "nucleos": nucleos,
             "linhas": dados["linhas"],
             "colunas": dados["colunas"],
@@ -223,7 +248,7 @@ def adiciona_opcoes(ap):
     ap.add_argument(
         "--workloads", type=Path, default=ROOT / "build/workloads/p12"
     )
-    ap.add_argument("--saida", type=Path, default=ROOT / "m5out/p12")
+    ap.add_argument("--saida", type=Path)
     ap.add_argument("--iteracoes", type=int)
     ap.add_argument("--linhas-mensagem", type=int)
     ap.add_argument("--m5ops", type=Path, help="usa a carga Python com CPU O3")
@@ -241,8 +266,10 @@ def configura(ap, args):
         ap.error("iteracoes e linhas por mensagem devem ser uint32 positivos")
     if not 0 <= args.semente_perfil < 2**64 or args.flits_transito < 0:
         ap.error("semente deve ser uint64 e flits-transito nao negativo")
+    pasta_padrao = "m5out/p12-python" if args.m5ops else "m5out/p12"
+    saida = args.saida or ROOT / pasta_padrao
     return Fluxo(
-        args.saida.resolve(),
+        saida.resolve(),
         args.gem5.resolve(),
         args.workloads.resolve(),
         args.iteracoes if args.m5ops else (args.iteracoes or 10),

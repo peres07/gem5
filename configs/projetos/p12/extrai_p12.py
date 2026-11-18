@@ -77,15 +77,7 @@ def confere_saltos(injetados, recebidos, custo, hops, diametro, limite):
         raise ValueError("distancia medida incompativel com average_hops")
 
 
-def extrai(pasta, linhas, colunas, mapa_json=None, limite=TRANSITO_PADRAO):
-    pasta = Path(pasta)
-    if linhas <= 0 or colunas <= 0 or limite < 0:
-        raise ValueError("dimensoes ou limite de transito invalidos")
-    checksum = confere_log(pasta, linhas * colunas)
-    stats = le_bloco(pasta)
-    # O segundo bloco e o despejo final, depois da ROI.
-    le_bloco(pasta, 1)
-    perfis = {u: le_perfil(pasta, u) for u in ("msgs", "flits")}
+def confere_conservacao(stats, perfis):
     totais = {}
     for unidade, contador in (("msgs", "packets"), ("flits", "flits")):
         matriz = perfis[unidade].matriz
@@ -94,6 +86,22 @@ def extrai(pasta, linhas, colunas, mapa_json=None, limite=TRANSITO_PADRAO):
         if total != injetados or any(v < 0 for linha in matriz for v in linha):
             raise ValueError(f"falha na conservacao de {unidade}")
         totais[unidade] = total
+    return totais
+
+
+def extrai(pasta, linhas, colunas, mapa_json=None, limite=TRANSITO_PADRAO):
+    pasta = Path(pasta)
+    if linhas <= 0 or colunas <= 0 or limite < 0:
+        raise ValueError("dimensoes ou limite de transito invalidos")
+    checksum = confere_log(pasta, linhas * colunas)
+    stats = le_bloco(pasta)
+    # gem5 tambem despeja estatisticas ao encerrar a simulacao.
+    try:
+        le_bloco(pasta, 1)
+    except ValueError as erro:
+        raise ValueError("falta o dump da ROI ou o dump final") from erro
+    perfis = {u: le_perfil(pasta, u) for u in ("msgs", "flits")}
+    totais = confere_conservacao(stats, perfis)
 
     perfil = perfis["flits"]
     num_routers = linhas * colunas

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 The Project 12 contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Le a matriz de trafego do Garnet no bloco de interesse."""
 
 import csv

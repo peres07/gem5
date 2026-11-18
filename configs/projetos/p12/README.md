@@ -45,3 +45,34 @@ grava `metricas.csv` e, com `--estabilidade`, `estabilidade.csv`.
 
 O modo C++ usa os mesmos scripts sem `--m5ops`. Consulte
 [workloads/p12/README.md](../../../workloads/p12/README.md).
+
+Na campanha Python, as barras de erro mostram o menor e o maior tempo
+entre os cinco mapas aleatórios. No modo C++, mostram o intervalo de
+confiança pareado das sementes de perturbação. Para gerar os quatro PNGs
+a partir do CSV, instale o matplotlib no Python do host e execute:
+
+```sh
+python3 configs/projetos/p12/analisa_p12.py \
+    resultados/p12-python/metricas.csv --saida resultados/p12-python/graficos
+```
+
+## Comparação com o gem5 original (G6)
+
+A opção de coleta controla as matrizes P12 e o CSV dos controladores.
+A revisão do projeto também mudou a leitura funcional do Ruby para
+permitir a leitura dos dados em trânsito durante a criação de threads
+em modo SE. Em X86 SE, a resposta ENOSYS para memfd_create permite\nque a libffi tente a alternativa de arquivo temporário. Essas\nadaptações são independentes da coleta. Compare o binário
+modificado com um binário compilado da mesma revisão-base, usando as
+mesmas opções de build e arquitetura:
+
+```sh
+python3 configs/projetos/p12/valida_sintetico_p12.py \
+    --original /caminho/base/Garnet_standalone/gem5.opt
+python3 configs/projetos/p12/valida_x86_p12.py \
+    --original /caminho/base/X86/gem5.opt
+```
+
+O teste X86 usa as cargas C++ por padrão. Para testar Python com O3,
+acrescente `--m5ops` e use um diretório de saída separado. Se a base
+falhar na criação de threads, guarde o log e registre o resultado como
+diferença de compatibilidade. A validação sintética não cobre esse caso.
