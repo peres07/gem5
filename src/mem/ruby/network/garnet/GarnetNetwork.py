@@ -52,6 +52,8 @@ class GarnetNetwork(RubyNetwork):
     garnet_deadlock_threshold = Param.UInt32(
         50000, "network-level deadlock threshold"
     )
+    # P12
+    p12_matriz = Param.Bool(False, "coleta matriz por controlador")
 
 
 class GarnetNetworkInterface(ClockedObject):

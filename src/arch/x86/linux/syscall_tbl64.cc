@@ -373,7 +373,8 @@ SyscallDescTable<EmuLinux::SyscallABI64> EmuLinux::syscallDescs64 = {
     {312, "kcmp"},
     {313, "finit_module"},
     {318, "getrandom", getrandomFunc<X86Linux64>},
-    {319, "memfd_create"},
+    // Let libffi fall back to temporary files in syscall emulation.
+    {319, "memfd_create", ignoreWithEnosysFunc},
     {320, "kexec_file_load"},
     {321, "bpf"},
     {322, "execveat"},
