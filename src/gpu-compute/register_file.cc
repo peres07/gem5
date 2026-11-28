@@ -57,7 +57,8 @@ RegisterFile::RegisterFile(const RegisterFileParams &p)
 }
 
 RegisterFile::~RegisterFile()
-{}
+{
+}
 
 void
 RegisterFile::setParent(ComputeUnit *_computeUnit)
@@ -94,25 +95,27 @@ RegisterFile::regBusy(int idx) const
 void
 RegisterFile::markReg(int regIdx, bool value)
 {
-    DPRINTF(GPURF, "SIMD[%d] markReg(): physReg[%d] = %d\n", simdId, regIdx,
-            (int)value);
+    DPRINTF(GPURF, "SIMD[%d] markReg(): physReg[%d] = %d\n",
+            simdId, regIdx, (int)value);
     busy.at(regIdx) = value;
 }
 
 void
 RegisterFile::enqRegFreeEvent(uint32_t regIdx, uint64_t delay)
 {
-    DPRINTF(GPURF, "SIMD[%d] enqRegFreeEvent physReg[%d] at %llu\n", simdId,
-            regIdx, curTick() + delay);
-    schedule(new MarkRegFreeScbEvent(this, regIdx), curTick() + delay);
+    DPRINTF(GPURF, "SIMD[%d] enqRegFreeEvent physReg[%d] at %llu\n",
+            simdId, regIdx, curTick() + delay);
+    schedule(new MarkRegFreeScbEvent(this, regIdx),
+             curTick() + delay);
 }
 
 void
 RegisterFile::enqRegBusyEvent(uint32_t regIdx, uint64_t delay)
 {
-    DPRINTF(GPURF, "SIMD[%d] enqRegBusyEvent physReg[%d] at %llu\n", simdId,
-            regIdx, curTick() + delay);
-    schedule(new MarkRegBusyScbEvent(this, regIdx), curTick() + delay);
+    DPRINTF(GPURF, "SIMD[%d] enqRegBusyEvent physReg[%d] at %llu\n",
+            simdId, regIdx, curTick() + delay);
+    schedule(new MarkRegBusyScbEvent(this, regIdx),
+             curTick() + delay);
 }
 
 // Schedule functions
@@ -124,7 +127,8 @@ RegisterFile::canScheduleReadOperands(Wavefront *w, GPUDynInstPtr ii)
 
 void
 RegisterFile::scheduleReadOperands(Wavefront *w, GPUDynInstPtr ii)
-{}
+{
+}
 
 bool
 RegisterFile::canScheduleWriteOperands(Wavefront *w, GPUDynInstPtr ii)
@@ -134,7 +138,8 @@ RegisterFile::canScheduleWriteOperands(Wavefront *w, GPUDynInstPtr ii)
 
 void
 RegisterFile::scheduleWriteOperands(Wavefront *w, GPUDynInstPtr ii)
-{}
+{
+}
 
 bool
 RegisterFile::canScheduleWriteOperandsFromLoad(Wavefront *w, GPUDynInstPtr ii)
@@ -144,7 +149,8 @@ RegisterFile::canScheduleWriteOperandsFromLoad(Wavefront *w, GPUDynInstPtr ii)
 
 void
 RegisterFile::scheduleWriteOperandsFromLoad(Wavefront *w, GPUDynInstPtr ii)
-{}
+{
+}
 
 bool
 RegisterFile::operandReadComplete(Wavefront *w, GPUDynInstPtr ii)
@@ -155,11 +161,13 @@ RegisterFile::operandReadComplete(Wavefront *w, GPUDynInstPtr ii)
 // Exec functions
 void
 RegisterFile::exec()
-{}
+{
+}
 
 void
 RegisterFile::waveExecuteInst(Wavefront *w, GPUDynInstPtr ii)
-{}
+{
+}
 
 // Events
 
@@ -179,24 +187,24 @@ RegisterFile::MarkRegBusyScbEvent::process()
 
 void
 RegisterFile::dispatchInstruction(GPUDynInstPtr ii)
-{}
+{
+}
 
 RegisterFile::RegisterFileStats::RegisterFileStats(statistics::Group *parent)
     : statistics::Group(parent),
       ADD_STAT(registerReads,
-               "Total number of DWORDs read from register file"),
+              "Total number of DWORDs read from register file"),
       ADD_STAT(rfc_cache_read_hits,
-               "Total number of DWORDs read from register file cache"),
+              "Total number of DWORDs read from register file cache"),
       ADD_STAT(rfc_cache_write_hits,
-               "Total number of writes to existing registers in the rfc"),
+              "Total number of writes to existing registers in the rfc"),
       ADD_STAT(registerWrites,
-               "Total number of DWORDS written to register file"),
-      ADD_STAT(
-          sramReads,
-          "Total number of register file bank SRAM activations for reads"),
-      ADD_STAT(
-          sramWrites,
-          "Total number of register file bank SRAM activations for writes")
-{}
+              "Total number of DWORDS written to register file"),
+      ADD_STAT(sramReads,
+              "Total number of register file bank SRAM activations for reads"),
+      ADD_STAT(sramWrites,
+              "Total number of register file bank SRAM activations for writes")
+{
+}
 
 } // namespace gem5

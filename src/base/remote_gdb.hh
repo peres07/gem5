@@ -162,7 +162,6 @@ class BaseRemoteGDB
     void connect();
 
     const ListenSocket &hostSocket() const;
-    std::string getListenerOutput() const;
 
     void attach(int fd);
     void detach();

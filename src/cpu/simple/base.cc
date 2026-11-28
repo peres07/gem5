@@ -414,9 +414,8 @@ BaseSimpleCPU::preExecute()
         const InstSeqNum cur_sn(0);
         set(t_info.predPC, thread->pcState());
         const bool predict_taken(
-            branchPred
-                ->predict(curStaticInst, cur_sn, *t_info.predPC, curThread)
-                .taken);
+            branchPred->predict(curStaticInst, cur_sn, *t_info.predPC,
+                curThread));
 
         if (predict_taken)
             ++t_info.execContextStats.numPredictedBranches;

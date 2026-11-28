@@ -100,15 +100,14 @@ class BasePrefetcher(ClockedObject):
     def addEvent(self, newObject):
         self._events.append(newObject)
 
-    # Describe the MMU and the probes to the C++ object.
-    # prefetch::Base::regProbeListeners() connects the listeners later.
-    def createCCObject(self):
-        super().createCCObject()
-
+    # Override the normal SimObject::regProbeListeners method and
+    # register deferred event handlers.
+    def regProbeListeners(self):
         for mmu in self._mmus:
             self.getCCObject().addMMU(mmu.getCCObject())
         for event in self._events:
             event.register()
+        self.getCCObject().regProbeListeners()
 
     def listenFromProbe(self, simObj, *probeNames):
         if not isinstance(simObj, SimObject):
@@ -742,11 +741,10 @@ class FetchDirectedPrefetcher(BasePrefetcher):
         super().__init__(**kwargs)
         self._cache = None
 
-    def createCCObject(self):
-        super().createCCObject()
-
+    def regProbeListeners(self):
         if self._cache:
             self.getCCObject().setCache(self._cache.getCCObject())
+        super().regProbeListeners()
 
     def registerCache(self, simObj):
         if not isinstance(simObj, SimObject):

@@ -817,15 +817,14 @@ TrapInstruction::invoke(ThreadContext *tc, const StaticInstPtr &inst)
     [[maybe_unused]] SparcProcess *sp = dynamic_cast<SparcProcess *>(p);
     assert(sp);
 
+    auto *workload = dynamic_cast<SEWorkload *>(tc->getSystemPtr()->workload);
+    workload->handleTrap(tc, _n);
+
     // We need to explicitly advance the pc, since that's not done for us
-    // on a faulting instruction. Do so before handling the trap so cloned
-    // threads resume after the syscall instead of executing it again.
+    // on a faulting instruction
     PCState pc = tc->pcState().as<PCState>();
     pc.advance();
     tc->pcState(pc);
-
-    auto *workload = dynamic_cast<SEWorkload *>(tc->getSystemPtr()->workload);
-    workload->handleTrap(tc, _n);
 }
 
 } // namespace SparcISA

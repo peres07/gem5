@@ -293,7 +293,7 @@ ProtocolTester::checkExit()
         if (!sentExitSignal) {
             // all done
             inform("Total completed episodes: %d\n", nextEpisodeId - 1);
-            exitSimulationLoopClassic("GPU Ruby Tester: Passed!");
+            exitSimLoop("GPU Ruby Tester: Passed!");
             sentExitSignal = true;
         }
         return true;

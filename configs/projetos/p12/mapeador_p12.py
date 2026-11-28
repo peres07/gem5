@@ -1,6 +1,3 @@
-# Copyright (c) 2026 The Project 12 contributors
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Mapeamento linear, aleatorio, guloso e otimo para 8 L1."""
 
 import argparse
@@ -112,38 +109,6 @@ def guloso(perfil, linhas, colunas, semente=None):
     return _constroi_guloso(_dados(perfil, linhas, colunas), linhas, colunas)
 
 
-def guloso_trocas(perfil, linhas, colunas, semente=None):
-    """Extensao da secao 21.13, fora da campanha principal."""
-    dados = _dados(perfil, linhas, colunas)
-    moveis, _, fluxo, custo_fixo = dados
-    mapa = _constroi_guloso(dados, linhas, colunas)
-
-    def custo():
-        return sum(custo_fixo[a, mapa[a]] for a in moveis) + sum(
-            fluxo[a, b] * distancia(mapa[a], mapa[b], colunas)
-            for i, a in enumerate(moveis)
-            for b in moveis[:i]
-        )
-
-    atual = custo()
-    while True:
-        troca = None
-        melhor = atual
-        for i, a in enumerate(moveis):
-            for b in moveis[:i]:
-                mapa[a], mapa[b] = mapa[b], mapa[a]
-                valor = custo()
-                mapa[a], mapa[b] = mapa[b], mapa[a]
-                if valor < melhor:
-                    melhor, troca = valor, (a, b)
-        if troca is None:
-            break
-        a, b = troca
-        mapa[a], mapa[b] = mapa[b], mapa[a]
-        atual = melhor
-    return mapa
-
-
 def otimo(perfil, linhas, colunas, semente=None):
     moveis, fixos, fluxo, custo_fixo = _dados(perfil, linhas, colunas)
     if len(moveis) > 8:
@@ -174,7 +139,6 @@ POLITICAS = {
     "linear": linear,
     "aleatorio": aleatorio,
     "guloso": guloso,
-    "guloso-trocas": guloso_trocas,
     "otimo": otimo,
 }
 

@@ -103,7 +103,7 @@ CacheRecorder::enqueueNextFlushRequest()
 
     } else {
         if (m_records_flushed > 0) {
-            exitSimulationLoopClassic("Finished Drain");
+            exitSimLoop("Finished Drain", 0);
         }
         DPRINTF(RubyCacheTrace, "Flushed all %d records\n", m_records_flushed);
     }
@@ -157,7 +157,7 @@ CacheRecorder::enqueueNextFetchRequest()
         m_bytes_read += (sizeof(TraceRecord) + m_block_size_bytes);
         m_records_read++;
     } else {
-        exitSimulationLoopClassic("Finished Warmup");
+        exitSimLoop("Finished Warmup", 0);
         DPRINTF(RubyCacheTrace, "Fetched all %d records\n", m_records_read);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026 Arm Limited
+ * Copyright (c) 2014 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -45,7 +45,6 @@
 #ifndef __BASE_RANDOM_HH__
 #define __BASE_RANDOM_HH__
 
-#include <cmath>
 #include <random>
 #include <string>
 #include <type_traits>
@@ -215,28 +214,6 @@ class Random
         // + 1 to handle cases where min == max
         T r = gen() % (max - min + 1) + min;
         return r;
-    }
-
-    /**
-     * @ingroup api_base_utils
-     */
-    template <typename T>
-    typename std::enable_if_t<std::is_integral_v<T>, T>
-    random_norm(T avg, T stdev)
-    {
-        std::normal_distribution<double> dist((double)avg, (double)stdev);
-        return (T)std::llround(dist(gen));
-    }
-
-    /**
-     * @ingroup api_base_utils
-     */
-    template <typename T>
-    typename std::enable_if_t<std::is_floating_point_v<T>, T>
-    random_norm(T avg, T stdev)
-    {
-        std::normal_distribution<T> dist(avg, stdev);
-        return dist(gen);
     }
 };
 

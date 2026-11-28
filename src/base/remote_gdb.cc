@@ -452,18 +452,6 @@ BaseRemoteGDB::hostSocket() const
     return *listener;
 }
 
-std::string
-BaseRemoteGDB::getListenerOutput() const
-{
-    if (!listener || !listener->islistening()) {
-        return "";
-    }
-
-    std::stringstream ss;
-    listener->output(ss);
-    return ss.str();
-}
-
 void
 BaseRemoteGDB::attach(int f)
 {
@@ -1433,26 +1421,20 @@ class MonitorCallEvent : public GlobalSimLoopExitEvent
     BaseRemoteGDB& gdb;
     ContextID id;
     public:
-      MonitorCallEvent(BaseRemoteGDB &gdb, ContextID id,
-                       const std::string &_cause, int code)
-          : GlobalSimLoopExitEvent(
-                _cause, code, 0,
-                static_cast<uint64_t>(ExitHypercall::CLASSIC_GENERATOR),
-                classicGeneratorPayload(_cause, code)),
-            gdb(gdb),
-            id(id) {};
-      void
-      process() override
-      { GlobalSimLoopExitEvent::process(); }
-      void
-      clean() override
-      {
-          // trapping now
-          // this is the only point in time when we can call trap
-          // before any breakpoint triggers
-          gdb.trap(id, GDBSignal::ZERO, "monitor_return");
-          delete this;
-      }
+    MonitorCallEvent(BaseRemoteGDB& gdb,ContextID id,const std::string &_cause,
+                  int code):
+                  GlobalSimLoopExitEvent(_cause,code), gdb(gdb),id(id)
+                  {};
+    void process() override{
+        GlobalSimLoopExitEvent::process();
+    }
+    void clean() override{
+        //trapping now
+        //this is the only point in time when we can call trap
+        //before any breakpoint triggers
+        gdb.trap(id,GDBSignal::ZERO,"monitor_return");
+        delete this;
+    }
     ~MonitorCallEvent(){
         DPRINTF(Event,"MonitorCallEvent destructed\n");;
     }

@@ -379,6 +379,13 @@ class System : public SimObject, public PCEventScope
      */
     memory::AbstractMemory *getDeviceMemory(const PacketPtr& pkt) const;
 
+    /*
+     * Return the list of address ranges backed by a shadowed ROM.
+     *
+     * @return List of address ranges backed by a shadowed ROM
+     */
+    AddrRangeList getShadowRomRanges() const { return ShadowRomRanges; }
+
     /**
      * Get the guest byte order.
      */
@@ -398,6 +405,8 @@ class System : public SimObject, public PCEventScope
     KvmVM *kvmVM = nullptr;
 
     memory::PhysicalMemory physmem;
+
+    AddrRangeList ShadowRomRanges;
 
     enums::MemoryMode memoryMode;
 

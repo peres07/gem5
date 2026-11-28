@@ -56,16 +56,10 @@ class MMU : public BaseMMU
 {
   public:
     BasePMAChecker *pma;
-    PMP *pmp;
 
-    MMU(const RiscvMMUParams &p) : BaseMMU(p), pma(p.pma_checker), pmp(p.pmp)
-    {
-        auto *itb_ptr = static_cast<TLB *>(itb);
-        auto *dtb_ptr = static_cast<TLB *>(dtb);
-
-        itb_ptr->setPMP(pmp);
-        dtb_ptr->setPMP(pmp);
-    }
+    MMU(const RiscvMMUParams &p)
+      : BaseMMU(p), pma(p.pma_checker)
+    {}
 
     void
     reset() override
@@ -110,26 +104,13 @@ class MMU : public BaseMMU
       MMU *ommu = dynamic_cast<MMU*>(old_mmu);
       BaseMMU::takeOverFrom(ommu);
       pma->takeOverFrom(ommu->pma);
-      pmp->takeOverFrom(ommu->pmp);
 
-      auto *itb_ptr = static_cast<TLB *>(itb);
-      auto *dtb_ptr = static_cast<TLB *>(dtb);
-      itb_ptr->setPMP(pmp);
-      dtb_ptr->setPMP(pmp);
-    }
-
-    void
-    demapPage(ThreadContext *tc, Addr vaddr, uint64_t asn,
-              bool is_gvma = false, bool is_vvma = false)
-    {
-        static_cast<TLB *>(itb)->demapPage(tc, vaddr, asn, is_gvma, is_vvma);
-        static_cast<TLB *>(dtb)->demapPage(tc, vaddr, asn, is_gvma, is_vvma);
     }
 
     PMP *
     getPMP()
     {
-        return pmp;
+        return static_cast<TLB*>(dtb)->pmp;
     }
 
     /*

@@ -59,11 +59,7 @@ class RegisterFile : public SimObject
     RegisterFile(const RegisterFileParams &p);
     virtual ~RegisterFile();
     virtual void setParent(ComputeUnit *_computeUnit);
-    int
-    numRegs() const
-    {
-        return _numRegs;
-    }
+    int numRegs() const { return _numRegs; }
 
     // State functions
 
@@ -81,10 +77,7 @@ class RegisterFile : public SimObject
 
       public:
         RegisterEvent(RegisterFile *_rf, int _regIdx)
-            : rf(_rf), regIdx(_regIdx)
-        {
-            setFlags(AutoDelete);
-        }
+            : rf(_rf), regIdx(_regIdx) { setFlags(AutoDelete); }
     };
 
     // Register Event to mark a register as free in the scoreboard/busy vector
@@ -92,8 +85,7 @@ class RegisterFile : public SimObject
     {
       public:
         MarkRegFreeScbEvent(RegisterFile *_rf, int _regIdx)
-            : RegisterEvent(_rf, _regIdx)
-        {}
+            : RegisterEvent(_rf, _regIdx) { }
         void process();
     };
 
@@ -102,8 +94,7 @@ class RegisterFile : public SimObject
     {
       public:
         MarkRegBusyScbEvent(RegisterFile *_rf, int _regIdx)
-            : RegisterEvent(_rf, _regIdx)
-        {}
+            : RegisterEvent(_rf, _regIdx) { }
         void process();
     };
 
@@ -135,7 +126,8 @@ class RegisterFile : public SimObject
                                                   GPUDynInstPtr ii);
     // Queue the register writes. Assumes canScheduleWriteOperandsFromLoad
     // was called immediately prior and returned True
-    virtual void scheduleWriteOperandsFromLoad(Wavefront *w, GPUDynInstPtr ii);
+    virtual void scheduleWriteOperandsFromLoad(Wavefront *w,
+                                               GPUDynInstPtr ii);
 
     // ExecRF is invoked every cycle by the compute unit and may be
     // used to model detailed timing of the register file.
@@ -151,7 +143,7 @@ class RegisterFile : public SimObject
     virtual void dispatchInstruction(GPUDynInstPtr ii);
 
   protected:
-    ComputeUnit *computeUnit;
+    ComputeUnit* computeUnit;
     int simdId;
 
     // flag indicating if a register is busy

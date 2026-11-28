@@ -14,7 +14,6 @@ from pathlib import Path
 
 from extrai_p12 import (
     TRANSITO_PADRAO,
-    confere_log,
     escreve_csv,
     extrai,
 )
@@ -22,11 +21,8 @@ from mapeador_p12 import (
     POLITICAS,
     cria_mapa,
 )
-from matriz_p12 import le_bloco
 
 ROOT = Path(__file__).resolve().parents[3]
-CARGA_PYTHON = ROOT / "workloads/p12/comunicacao.py"
-FASES_PYTHON = {"vizinhanca": 20000, "grupos": 20000, "uniforme": 5000}
 SISTEMA = Path(__file__).with_name("sistema_p12.py").resolve()
 PROGRAMAS = ("vizinhanca", "grupos", "uniforme")
 MALHAS = {8: (2, 4), 16: (4, 4)}
@@ -58,14 +54,9 @@ class Fluxo:
     saida: Path
     gem5: Path
     workloads: Path
-    iteracoes: int | None
+    iteracoes: int
     linhas_mensagem: int
     limite: int = TRANSITO_PADRAO
-    m5ops: Path | None = None
-    python: Path = Path("/usr/bin/python3")
-    helper: Path | None = None
-    cpu_cpp: str = "X86TimingSimpleCPU"
-    aquecimento_rapido: bool = False
 
     def roda(
         self,
@@ -76,47 +67,17 @@ class Fluxo:
         mapa=None,
         executar=True,
         topologia="MeshMapeada",
-        coleta=True,
     ):
         pasta = pasta.resolve()
         gem5 = self.gem5.resolve()
         binario = (self.workloads / programa).resolve()
-        cpu = self.cpu_cpp
-        opcoes = f"{nucleos} {self.iteracoes} {self.linhas_mensagem} {semente}"
-        extra = []
-        if self.m5ops is not None:
-            binario = self.python.resolve()
-            cpu = "X86O3CPU"
-            padrao = "dois_grupos" if programa == "grupos" else programa
-            fases = self.iteracoes or FASES_PYTHON[programa]
-            opcoes = [
-                "-B", "-S", str(CARGA_PYTHON), padrao, str(fases),
-                "--threads", str(nucleos),
-                "--linhas-msg", str(self.linhas_mensagem),
-                "--semente", str(semente),
-                "--m5ops", str(self.m5ops),
-            ]
-            extra = [
-                "--p12-python",
-                "--sys-clock=2GHz", "--ruby-clock=2GHz",
-                "--mem-size=4GiB", "--mem-type=DDR3_1600_8x8",
-                "--l1i_size=32KiB", "--l1d_size=32KiB",
-                "--l1i_assoc=4", "--l1d_assoc=4",
-                "--l2_size=512KiB", "--l2_assoc=8",
-            ]
-            if self.aquecimento_rapido:
-                extra.append("--p12-aquecimento-rapido")
-                opcoes.extend(("--aquecimento", "1"))
-            opcoes = shlex.join(opcoes)
-            if self.helper is not None:
-                extra.append(f"--p12-helper={self.helper.resolve()}")
         linhas, colunas = MALHAS[nucleos]
         cmd = [
             str(gem5),
             "-d",
             str(pasta),
             str(SISTEMA),
-            f"--cpu-type={cpu}",
+            "--cpu-type=X86TimingSimpleCPU",
             "--network=garnet",
             f"--topology={topologia}",
             "--routing-algorithm=1",
@@ -127,14 +88,11 @@ class Fluxo:
             f"--num-dirs={nucleos}",
             f"--num-l2caches={nucleos}",
             f"--mesh-rows={linhas}",
+            "--p12-matriz",
             f"--cmd={binario}",
-            f"--options={opcoes}",
-            *extra,
+            f"--options={nucleos} {self.iteracoes} "
+            f"{self.linhas_mensagem} {semente}",
         ]
-        if coleta:
-            cmd.append("--p12-matriz")
-        elif mapa is not None:
-            raise ValueError("a comparacao sem coleta usa apenas o mapa linear")
         if mapa is not None:
             mapa = mapa.resolve()
             cmd.append(f"--p12-mapa={mapa}")
@@ -148,28 +106,10 @@ class Fluxo:
             ),
             "mapa_sha256": digest(mapa) if mapa else None,
         }
-        if self.m5ops is not None:
-            assinatura["carga_python"] = digest(CARGA_PYTHON)
-            assinatura["m5ops"] = digest(self.m5ops)
-            if self.helper is not None:
-                assinatura["helper"] = identidade_executavel(
-                    self.helper.resolve()
-                )
-        def confere_saida():
-            if coleta:
-                return extrai(pasta, linhas, colunas, mapa, self.limite)
-            stats = le_bloco(pasta)
-            le_bloco(pasta, 1)
-            if (pasta / "p12_nos.csv").exists() or any(
-                k.startswith("system.ruby.network.p12_") for k in stats
-            ):
-                raise ValueError("coleta desligada produziu artefatos P12")
-            return {"checksum": confere_log(pasta, nucleos)}
-
         marco = pasta / "concluido.json"
         try:
             if json.loads(marco.read_text()) == assinatura:
-                return confere_saida()
+                return extrai(pasta, linhas, colunas, mapa, self.limite)
         except ERROS_DADOS:
             pass
         if not executar:
@@ -183,7 +123,6 @@ class Fluxo:
             (pasta / nome).unlink(missing_ok=True)
         escreve_json(pasta / "execucao.json", assinatura)
         log = pasta / "simulador.log"
-        print(f"Executando {pasta}; log: {log}", flush=True)
         with log.open("w") as arq:
             arq.write(shlex.join(cmd) + "\n")
             arq.flush()
@@ -199,11 +138,10 @@ class Fluxo:
                 f"gem5 retornou {resultado.returncode}; veja {log}"
             )
         try:
-            metricas = confere_saida()
+            metricas = extrai(pasta, linhas, colunas, mapa, self.limite)
         except ERROS_DADOS as erro:
             raise ValueError(f"execucao invalida em {pasta}: {erro}") from erro
         escreve_json(marco, assinatura)
-        print(f"Validado: {pasta}", flush=True)
         return metricas
 
     def perfil(self, programa, nucleos, semente, executar=True):
@@ -211,13 +149,13 @@ class Fluxo:
         self.roda(pasta, programa, nucleos, semente, executar=executar)
         return pasta
 
-    def caminho_mapa(self, dir_perfil, politica, semente, unidade):
-        nome = f"{dir_perfil.name}-{politica}-{semente}-{unidade}.json"
-        return self.saida / "mapas" / nome
-
     def mapeia(self, dir_perfil, politica, semente, nucleos, unidade="flits"):
         linhas, colunas = MALHAS[nucleos]
-        caminho = self.caminho_mapa(dir_perfil, politica, semente, unidade)
+        caminho = (
+            self.saida
+            / "mapas"
+            / (f"{dir_perfil.name}-{politica}-{semente}-{unidade}.json")
+        )
         mapa = cria_mapa(
             dir_perfil, politica, linhas, colunas, semente, unidade
         )
@@ -233,18 +171,12 @@ class Fluxo:
             + digest(dir_perfil / "p12_nos.csv")
         )
 
-    def avalia(self, programa, nucleos, mapa, semente, confere_perfil=False):
+    def avalia(self, programa, nucleos, mapa, semente):
         pasta = self.saida / "avaliacao" / mapa.stem / f"perturb-{semente}"
         dados = json.loads(mapa.read_text())
         metricas = self.roda(pasta, programa, nucleos, semente, mapa)
-        if confere_perfil:
-            esperado = confere_log(Path(dados["perfil"]), nucleos)
-            if metricas["checksum"] != esperado:
-                raise ValueError(f"{pasta}: checksum difere do perfil")
         return {
             "programa": programa,
-            "carga": "python" if self.m5ops else "cpp",
-            "aquecimento_rapido": self.aquecimento_rapido,
             "nucleos": nucleos,
             "linhas": dados["linhas"],
             "colunas": dados["colunas"],
@@ -262,48 +194,25 @@ def adiciona_opcoes(ap):
     ap.add_argument(
         "--workloads", type=Path, default=ROOT / "build/workloads/p12"
     )
-    ap.add_argument("--saida", type=Path)
-    ap.add_argument("--iteracoes", type=int)
-    ap.add_argument("--linhas-mensagem", type=int)
-    ap.add_argument("--m5ops", type=Path, help="usa a carga Python com CPU O3")
-    ap.add_argument(
-        "--cpu-cpp", choices=("X86TimingSimpleCPU", "X86O3CPU"),
-        default="X86TimingSimpleCPU",
-    )
-    ap.add_argument("--python", type=Path, default=Path("/usr/bin/python3"))
-    ap.add_argument("--helper", type=Path)
-    ap.add_argument(
-        "--aquecimento-rapido", action="store_true",
-        help="inicializa o Python em Atomic e mede a regiao em O3",
-    )
+    ap.add_argument("--saida", type=Path, default=ROOT / "m5out/p12")
+    ap.add_argument("--iteracoes", type=int, default=10)
+    ap.add_argument("--linhas-mensagem", type=int, default=4)
     ap.add_argument("--semente-perfil", type=int, default=1)
     ap.add_argument("--flits-transito", type=int, default=TRANSITO_PADRAO)
 
 
 def configura(ap, args):
-    if any(
-        v is not None and not 0 < v < 2**32
-        for v in (args.iteracoes, args.linhas_mensagem)
-    ):
+    if not 0 < args.iteracoes < 2**32 or not 0 < args.linhas_mensagem < 2**32:
         ap.error("iteracoes e linhas por mensagem devem ser uint32 positivos")
     if not 0 <= args.semente_perfil < 2**64 or args.flits_transito < 0:
         ap.error("semente deve ser uint64 e flits-transito nao negativo")
-    if args.aquecimento_rapido and (not args.m5ops or args.helper):
-        ap.error("--aquecimento-rapido requer --m5ops e nao usa --helper")
-    pasta_padrao = "m5out/p12-python" if args.m5ops else "m5out/p12"
-    saida = args.saida or ROOT / pasta_padrao
     return Fluxo(
-        saida.resolve(),
+        args.saida.resolve(),
         args.gem5.resolve(),
         args.workloads.resolve(),
-        args.iteracoes if args.m5ops else (args.iteracoes or 10),
-        args.linhas_mensagem or (1 if args.m5ops else 4),
+        args.iteracoes,
+        args.linhas_mensagem,
         args.flits_transito,
-        args.m5ops.resolve() if args.m5ops else None,
-        args.python.resolve(),
-        args.helper.resolve() if args.helper else None,
-        args.cpu_cpp,
-        args.aquecimento_rapido,
     )
 
 
@@ -314,16 +223,11 @@ def main():
     ap.add_argument("nucleos", type=int, choices=MALHAS)
     ap.add_argument("--politica", choices=POLITICAS, default="guloso")
     ap.add_argument("--semente-mapa", type=int, default=1)
-    ap.add_argument("--semente-perturbacao", type=int)
+    ap.add_argument("--semente-perturbacao", type=int, default=11)
     ap.add_argument("--unidade", choices=("flits", "msgs"), default="flits")
-    ap.add_argument("--resumo", action="store_true",
-                    help="compara o resultado com o perfil linear")
     args = ap.parse_args()
     fluxo = configura(ap, args)
-    semente = args.semente_perturbacao
-    if semente is None:
-        semente = args.semente_perfil if args.m5ops else 11
-    if not 0 <= semente < 2**64:
+    if not 0 <= args.semente_perturbacao < 2**64:
         ap.error("semente de perturbacao deve ser uint64")
     if args.politica == "otimo" and args.nucleos != 8:
         ap.error("politica otimo permitida apenas para 8 nucleos")
@@ -340,26 +244,10 @@ def main():
             args.programa,
             args.nucleos,
             mapa,
-            semente,
-            confere_perfil=(semente == args.semente_perfil),
+            args.semente_perturbacao,
         )
         saida = Path(linha["execucao"]) / "metricas.csv"
         escreve_csv(saida, [linha])
-        if args.resumo:
-            anterior = extrai(perfil, *MALHAS[args.nucleos], limite=fluxo.limite)
-            print(f"\n{'Métrica':<33} {'Linear':>14} {args.politica:>14}")
-            for chave, rotulo in (
-                ("simTicks", "Tempo simulado (ms)"),
-                ("average_hops", "Saltos médios por flit"),
-                ("latencia_rede_ciclos", "Latência de rede (ciclos)"),
-            ):
-                a, b = anterior[chave], linha[chave]
-                if chave == "simTicks":
-                    a *= 1000 / int(le_bloco(perfil)["simFreq"])
-                    b *= 1000 / int(le_bloco(Path(linha["execucao"]))["simFreq"])
-                print(f"{rotulo:<33} {a:14.6f} {b:14.6f}")
-            print(f"Checksum linear={anterior['checksum']} "
-                  f"{args.politica}={linha['checksum']}")
     except ERROS_DADOS as erro:
         ap.exit(1, f"{erro}\n")
     print(saida)

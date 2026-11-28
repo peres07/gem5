@@ -23,14 +23,3 @@ check: all
 	    for programa in $(PROGRAMAS); do $$programa $$n 12 3 11 --nativo; done; \
 	    $(OUT)/grupos $$n 12 3 11 --nativo --blocos; \
 	done
-
-PYTHON_CONFIG ?= python3-config
-
-.PHONY: python
-python: $(OUT)/_p12_m5.so
-
-$(OUT)/_p12_m5.so: p12_m5.c $(GEM5_ROOT)/util/m5/src/abi/x86/m5op.S
-	mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -I$(GEM5_ROOT)/include \
-	    $(shell $(PYTHON_CONFIG) --includes) -shared -fPIC \
-	    -Wl,-z,noexecstack $^ $(LDFLAGS) -o $@

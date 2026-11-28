@@ -1276,8 +1276,7 @@ class BaseCache : public ClockedObject
         if (missCount) {
             --missCount;
             if (missCount == 0)
-                exitSimulationLoopClassic(
-                    "A cache reached the maximum miss count");
+                exitSimLoop("A cache reached the maximum miss count");
         }
     }
     void incHitCount(PacketPtr pkt)

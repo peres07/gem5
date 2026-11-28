@@ -34,8 +34,8 @@ class TimeConversion:
     """
 
     scale_factor: float
-    description: str | None
+    description: Optional[str]
 
-    def __init__(self, scale_factor: float, description: str | None = None):
+    def __init__(self, scale_factor: float, description: Optional[str] = None):
         self.scale_factor = scale_factor
         self.description = description

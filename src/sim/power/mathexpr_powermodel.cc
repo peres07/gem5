@@ -64,17 +64,11 @@ MathExprPowerModel::startup()
             if (var == "temp" || var == "voltage" || var == "clock_period") {
                 continue;
             }
-            // Strip ::subname before resolving
-            std::string statName = var;
-            auto sepPos = var.find("::");
-            if (sepPos != std::string::npos) {
-                statName = var.substr(0, sepPos);
-            }
 
-            auto *info = statistics::resolve(statName);
+            auto *info = statistics::resolve(var);
             fatal_if(!info, "Failed to evaluate %s in expression:\n%s\n",
                      var, expr.toStr());
-            statsMap[statName] = info;
+            statsMap[var] = info;
         }
     }
 }
@@ -102,14 +96,7 @@ MathExprPowerModel::getStatValue(const std::string &name) const
         return clocked_object->clockPeriod();
     }
 
-    std::string statName = name;
-    std::string subName = "";
-    auto sepPos = name.find("::");
-    if (sepPos != std::string::npos) {
-        statName = name.substr(0, sepPos);
-        subName = name.substr(sepPos + 2); // skip "::"
-    }
-    const auto it = statsMap.find(statName);
+    const auto it = statsMap.find(name);
     assert(it != statsMap.cend());
     const Info *info = it->second;
 
@@ -118,21 +105,8 @@ MathExprPowerModel::getStatValue(const std::string &name) const
     if (si)
         return si->value();
     auto fi = dynamic_cast<const FormulaInfo *>(info);
-    if (fi) {
-        if (fi->subnames.size() >= 2 && !subName.empty()) {
-            // multi-bucket stat like overallAccesses
-            // for now return total, later add #subname support here
-            const VResult &results = fi->result();
-            for (size_t i = 0; i < fi->subnames.size(); i++) {
-                if (fi->subnames[i] == subName) {
-                    return results[i];
-                }
-            }
-            return fi->total();
-        }
-        // single value stat like ipc, simSeconds
+    if (fi)
         return fi->total();
-    }
 
     panic("Unknown stat type!\n");
 }

@@ -29,11 +29,10 @@
 #ifndef __MEM_DRAMSYS_H__
 #define __MEM_DRAMSYS_H__
 
-#include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
-
+#include "DRAMSys/config/DRAMSysConfiguration.h"
 #include "mem/abstract_mem.hh"
 #include "mem/dramsys_wrapper.hh"
-#include "systemc/tlm_port_wrapper.hh"
+#include "params/DRAMSys.hh"
 
 namespace gem5
 {
@@ -47,16 +46,14 @@ class DRAMSys : public AbstractMemory
     sc_gem5::TlmTargetWrapper<> tlmWrapper;
 
   public:
-    DRAMSys(Params const &params);
-    void init() override;
-    void resetStats() override;
+    DRAMSys(Params const& params);
 
-    gem5::Port &getPort(const std::string &if_name, PortID idx) override;
+    gem5::Port& getPort(const std::string& if_name, PortID idx) override;
 
     DrainState drain() override;
 
-    void serialize(CheckpointOut &cp) const override;
-    void unserialize(CheckpointIn &cp) override;
+    void serialize(CheckpointOut& cp) const override;
+    void unserialize(CheckpointIn& cp) override;
 
   private:
     ::DRAMSys::Config::Configuration config;

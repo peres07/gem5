@@ -237,17 +237,6 @@ PMP::pmpReset()
     }
 }
 
-void
-PMP::takeOverFrom(PMP *old)
-{
-    panic_if(!old, "Cannot take over from a null RISC-V PMP");
-    panic_if(pmpEntries != old->pmpEntries,
-             "Mismatched RISC-V PMP entry count during takeOverFrom");
-
-    pmpTable = old->pmpTable;
-    numRules = old->numRules;
-}
-
 bool
 PMP::pmpUpdateAddr(uint32_t pmp_index, Addr this_addr)
 {
@@ -300,33 +289,6 @@ PMP::pmpDecodeNapot(Addr pmpaddr)
         uint64_t base = mbits(pmpaddr, 63, t1) << 2;
         AddrRange this_range(base, base+range);
         return this_range;
-    }
-}
-
-void
-PMP::serialize(CheckpointOut &cp) const
-{
-    int cptPmpEntries = pmpEntries;
-    SERIALIZE_SCALAR(cptPmpEntries);
-    for (int i = 0; i < pmpEntries; i++) {
-        pmpTable[i].serializeSection(cp, csprintf("Entry%d", i));
-    }
-}
-void
-PMP::unserialize(CheckpointIn &cp)
-{
-    int cptPmpEntries;
-    UNSERIALIZE_SCALAR(cptPmpEntries);
-    if (cptPmpEntries != pmpEntries) {
-        fatal("Current PMP table size (%d) differs from checkpoint PMP table "
-              "size (%d).",
-              pmpEntries, cptPmpEntries);
-    }
-
-    for (int i = 0; i < pmpEntries; i++) {
-        PmpEntry *tmp = &pmpTable[i];
-        tmp->unserializeSection(cp, csprintf("Entry%d", i));
-        pmpUpdateRule(i);
     }
 }
 

@@ -27,7 +27,6 @@
 """
 Test file for the insttest binary running on the SPARC ISA
 """
-
 from testlib import *
 
 test_progs = {constants.sparc_tag: ("sparc-insttest",)}

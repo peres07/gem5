@@ -1,15 +1,12 @@
-# Copyright (c) 2026 The Project 12 contributors
-# SPDX-License-Identifier: BSD-3-Clause
-
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from mapeador_p12 import (
+    POLITICAS,
     aleatorio,
     confere,
     guloso,
-    guloso_trocas,
     linear,
     otimo,
 )
@@ -34,19 +31,24 @@ def perfil_teste(padrao):
 
 
 class TesteMapeador(unittest.TestCase):
+    def test_politicas(self):
+        self.assertEqual(
+            set(POLITICAS), {"linear", "aleatorio", "guloso", "otimo"}
+        )
+
     def test_grupos(self):
         p = perfil_teste("grupos")
         a = linear(p, 2, 4)
         g = guloso(p, 2, 4)
         o = otimo(p, 2, 4)
         self.assertAlmostEqual(d_ponderada(p, a, 4), 2)
+        # Dois blocos 2x2 no otimo recuperam a distancia da figura 21.2.
         self.assertAlmostEqual(d_ponderada(p, o, 4), 16 / 12)
+        figura = dict(zip(p.nomes, (0, 2, 1, 3, 4, 6, 5, 7)))
+        self.assertAlmostEqual(d_ponderada(p, figura, 4), 16 / 12)
         # O desempate central da secao 21.2.4 deixa o 2o grupo nas bordas.
         self.assertEqual([g[n] for n in p.nomes], [1, 0, 2, 4, 5, 3, 6, 7])
         self.assertEqual(d_ponderada(p, g, 4), 2)
-        self.assertAlmostEqual(
-            d_ponderada(p, guloso_trocas(p, 2, 4), 4), 16 / 12
-        )
         self.assertEqual(g, guloso(p, 2, 4))
 
     def test_anel(self):
@@ -68,6 +70,8 @@ class TesteMapeador(unittest.TestCase):
         ordem = (0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12)
         self.assertEqual(d_ponderada(p, base, 4), 30 / 16)
         self.assertEqual(d_ponderada(p, dict(zip(nomes, ordem)), 4), 18 / 16)
+        with self.assertRaisesRegex(ValueError, "limitada a 8 L1"):
+            otimo(p, 4, 4)
 
     def test_trafego_de_fixo_para_l1_entra_no_custo_linear(self):
         p = perfil_teste("vazia")

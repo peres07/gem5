@@ -156,13 +156,13 @@ class ArmPMU(SimObject):
 
         self._events.append(newObject)
 
-    # Describe the events to the C++ object. PMU::regProbeListeners()
-    # attaches the listeners later.
-    def createCCObject(self):
-        super().createCCObject()
-
-        for event in self._events or []:
+    # Override the normal SimObject::regProbeListeners method and
+    # register deferred event handlers.
+    def regProbeListeners(self):
+        for event in self._events:
             event.register()
+
+        self.getCCObject().regProbeListeners()
 
     def addArchEvents(
         self,

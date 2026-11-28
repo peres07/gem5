@@ -54,7 +54,10 @@ LupioTMR::LupioTMR(const Params &params) :
 
     for (int cpu = 0; cpu < nThread; cpu++) {
         timers[cpu].tmrEvent = new EventFunctionWrapper(
-            [=, this] { lupioTMRCallback(cpu); }, name() + "done");
+            [=]{
+                lupioTMRCallback(cpu);
+            }, name()+"done"
+        );
     }
 
     DPRINTF(LupioTMR, "LupioTMR initalized\n");

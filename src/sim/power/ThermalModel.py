@@ -115,9 +115,7 @@ class ThermalModel(ClockedObject):
         if not hasattr(self, "_nodes"):
             self._nodes = []
 
-    def createCCObject(self):
-        super().createCCObject()
-
+    def init(self):
         self.populate()
 
         for ref, node in self._references:

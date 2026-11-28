@@ -34,12 +34,11 @@ from .dram_interfaces.ddr3 import (
 from .dram_interfaces.ddr4 import DDR4_2400_8x8
 from .dram_interfaces.hbm import HBM_1000_4H_1x64
 from .dram_interfaces.lpddr3 import LPDDR3_1600_1x32
-from .dram_interfaces.lpddr5 import LPDDR5_5500_1x16_BG_BL32
 from .memory import ChanneledMemory
 
 
 def DualChannelDDR3_1600(
-    size: str | None = None,
+    size: Optional[str] = None,
 ) -> AbstractMemorySystem:
     """
     A dual channel memory system using DDR3_1600_8x8 based DIMM.
@@ -48,7 +47,7 @@ def DualChannelDDR3_1600(
 
 
 def DualChannelDDR3_2133(
-    size: str | None = None,
+    size: Optional[str] = None,
 ) -> AbstractMemorySystem:
     """
     A dual channel memory system using DDR3_2133_8x8 based DIMM.
@@ -57,7 +56,7 @@ def DualChannelDDR3_2133(
 
 
 def DualChannelDDR4_2400(
-    size: str | None = None,
+    size: Optional[str] = None,
 ) -> AbstractMemorySystem:
     """
     A dual channel memory system using DDR4_2400_8x8 based DIMM.
@@ -66,18 +65,6 @@ def DualChannelDDR4_2400(
 
 
 def DualChannelLPDDR3_1600(
-    size: str | None = None,
+    size: Optional[str] = None,
 ) -> AbstractMemorySystem:
-    """
-    A dual channel memory system using LPDDR3_1600_1x32 based DIMM.
-    """
     return ChanneledMemory(LPDDR3_1600_1x32, 2, 64, size=size)
-
-
-def DualChannelLPDDR5_5500(
-    size: str | None = None,
-) -> AbstractMemorySystem:
-    """
-    A dual channel memory system using LPDDR5_5500_1x16_BG_BL32 based DIMM.
-    """
-    return ChanneledMemory(LPDDR5_5500_1x16_BG_BL32, 2, 64, size=size)

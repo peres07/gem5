@@ -249,7 +249,7 @@ RubyTester::wakeup()
 
         schedule(checkStartEvent, curTick() + m_wakeup_frequency);
     } else {
-        exitSimulationLoopClassic("Ruby Tester completed");
+        exitSimLoop("Ruby Tester completed");
     }
 }
 

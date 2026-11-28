@@ -1,6 +1,6 @@
 # -*- mode:python -*-
 
-# Copyright (c) 2023, 2026 Arm Limited
+# Copyright (c) 2023 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -37,17 +37,13 @@
 
 Import('*')
 
-if not env['CONF']['RUBY_PROTOCOL_CHI']:
+if env['CONF']['PROTOCOL'] != 'CHI':
     Return()
 
-SimObject('CHIGeneric.py', sim_objects=['CHIGenericController'])
-SimObject(
-    'CBusy.py',
-    sim_objects=['BaseCBusy', 'CBusy', 'SnfCBusy', 'CBusyTracker']
-)
+SimObject('CHIGeneric.py',
+    sim_objects=['CHIGenericController'])
 
 DebugFlag('RubyCHIGeneric')
 DebugFlag('RubyCHIGenericVerbose')
 
 Source('CHIGenericController.cc')
-Source('CBusy.cc')

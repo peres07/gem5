@@ -255,9 +255,11 @@ SpatterGen::checkForSimExit()
                 mode == SpatterProcessingMode::asynchronous
             );
         state = SpatterGenState::WAITING;
-        exitSimulationLoopClassic(
-            csprintf("%s received all expected responses.", name()), 0,
-            nextCycle());
+        exitSimLoop(
+            csprintf("%s received all expected responses.", name()),
+            0,
+            nextCycle()
+        );
     }
 }
 

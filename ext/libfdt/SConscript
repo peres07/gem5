@@ -1,6 +1,5 @@
 # -*- mode:python -*-
 
-# Copyright (c) 2026 The Regents of The University of California
 # Copyright (c) 2013 The Regents of The University of Michigan
 # All rights reserved.
 #
@@ -27,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Anthony Gutierrez, Bobby R. Bruce
+# Authors: Anthony Gutierrez
 
 Import('env')
 

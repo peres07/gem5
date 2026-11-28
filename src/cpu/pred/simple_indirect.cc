@@ -132,15 +132,15 @@ SimpleIndirectPredictor::lookup(ThreadID tid, InstSeqNum sn,
     history->was_indirect = true;
 
     /** Do the prediction for indirect branches (no returns) */
-    const PCStateBase *target = nullptr;
+    PCStateBase* target = nullptr;
     history->hit = lookup(tid, pc, target, history);
     return target;
 }
 
 bool
 SimpleIndirectPredictor::lookup(ThreadID tid, Addr br_addr,
-                                const PCStateBase *&target,
-                                IndirectHistory *&history)
+                                PCStateBase * &target,
+                                IndirectHistory * &history)
 {
 
     history->set_index = getSetIndex(br_addr, tid);
@@ -159,7 +159,7 @@ SimpleIndirectPredictor::lookup(ThreadID tid, Addr br_addr,
         // check that way->target has been initialized.
         if (way->tag == history->tag && way->target) {
             DPRINTF(Indirect, "Hit %x (target:%s)\n", br_addr, *way->target);
-            target = way->target.get();
+            set(target, *way->target);
             history->hit = true;
             stats.hits++;
             return history->hit;

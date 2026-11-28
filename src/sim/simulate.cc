@@ -43,7 +43,6 @@
 #include "sim/simulate.hh"
 
 #include <atomic>
-#include <barrier>
 #include <thread>
 
 #include "base/logging.hh"
@@ -114,7 +113,7 @@ class SimulatorThreads
         // threads should be waiting on the barrier when the function
         // is called. The arrival of the main thread here will satisfy
         // the barrier and start another iteration in the thread loop.
-        barrier.arrive_and_wait();
+        barrier.wait();
     }
 
     void
@@ -130,7 +129,7 @@ class SimulatorThreads
          * barrier. Tell the helper threads to exit and release them from
          * their barrier. */
         terminate = true;
-        barrier.arrive_and_wait();
+        barrier.wait();
 
         /* Wait for all of the threads to terminate */
         for (auto &t : threads) {
@@ -154,26 +153,25 @@ class SimulatorThreads
     thread_main(EventQueue *queue)
     {
         /* Wait for all initialisation to complete */
-        barrier.arrive_and_wait();
+        barrier.wait();
 
         while (!terminate) {
             doSimLoop(queue);
-            barrier.arrive_and_wait();
+            barrier.wait();
         }
     }
 
     std::atomic<bool> terminate;
     uint32_t numQueues;
     std::vector<std::thread> threads;
-    std::barrier<> barrier;
+    Barrier barrier;
 };
 
 static std::unique_ptr<SimulatorThreads> simulatorThreads;
 
 struct DescheduleDeleter
 {
-    void
-    operator()(GlobalSyncEvent *event)
+    void operator()(BaseGlobalEvent *event)
     {
         if (!event)
             return;
@@ -260,9 +258,8 @@ void set_max_tick(Tick tick)
 {
     if (!simulate_limit_event) {
         simulate_limit_event = new GlobalSimLoopExitEvent(
-            mainEventQueue[0]->getCurTick(), "simulate() limit reached", 0, 0,
-            static_cast<uint64_t>(ExitHypercall::CLASSIC_GENERATOR),
-            classicGeneratorPayload("simulate() limit reached"));
+            mainEventQueue[0]->getCurTick(),
+            "simulate() limit reached", 0);
     }
     simulate_limit_event->reschedule(tick);
 }
@@ -326,7 +323,7 @@ doSimLoop(EventQueue *eventq)
 
             if (async_exit) {
                 async_exit = false;
-                exitSimulationLoopClassic("user interrupt received");
+                exitSimLoop("user interrupt received");
             }
 
             if (async_exception) {

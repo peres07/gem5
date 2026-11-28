@@ -54,7 +54,6 @@
 #include "dev/dma_virt_device.hh"
 #include "dev/hsa/hsa_packet_processor.hh"
 #include "dev/hsa/hsa_signal.hh"
-#include "gpu-compute/blit_emulation.hh"
 #include "gpu-compute/dispatcher.hh"
 #include "gpu-compute/gpu_compute_driver.hh"
 #include "gpu-compute/hsa_queue_entry.hh"
@@ -78,14 +77,14 @@ class GPUCommandProcessor : public DmaVirtDevice
     GPUCommandProcessor() = delete;
     GPUCommandProcessor(const Params &p);
 
-    HSAPacketProcessor &hsaPacketProc();
+    HSAPacketProcessor& hsaPacketProc();
     RequestorID vramRequestorId();
     GfxVersion getGfxVersion() const;
 
     void setGPUDevice(AMDGPUDevice *gpu_device);
     void setShader(Shader *shader);
-    Shader *shader();
-    GPUComputeDriver *driver();
+    Shader* shader();
+    GPUComputeDriver* driver();
 
     struct KernelDispatchData
     {
@@ -101,8 +100,8 @@ class GPUCommandProcessor : public DmaVirtDevice
 
     enum AgentCmd
     {
-        Nop = 0,
-        Steal = 1
+      Nop = 0,
+      Steal = 1
     };
 
     void performTimingRead(PacketPtr pkt, int dispType);
@@ -110,10 +109,11 @@ class GPUCommandProcessor : public DmaVirtDevice
     void completeTimingRead(int dispType);
 
     void submitAgentDispatchPkt(void *raw_pkt, uint32_t queue_id,
-                                Addr host_pkt_addr);
+                           Addr host_pkt_addr);
     void submitDispatchPkt(void *raw_pkt, uint32_t queue_id,
                            Addr host_pkt_addr);
-    void submitVendorPkt(void *raw_pkt, uint32_t queue_id, Addr host_pkt_addr);
+    void submitVendorPkt(void *raw_pkt, uint32_t queue_id,
+                         Addr host_pkt_addr);
     void attachDriver(GPUComputeDriver *driver);
 
     void dispatchKernelObject(AMDKernelCode *akc, void *raw_pkt,
@@ -121,23 +121,15 @@ class GPUCommandProcessor : public DmaVirtDevice
     void dispatchPkt(HSAQueueEntry *task);
     void signalWakeupEvent(uint32_t event_id);
 
-    Tick
-    write(PacketPtr pkt) override
-    {
-        return 0;
-    }
-    Tick
-    read(PacketPtr pkt) override
-    {
-        return 0;
-    }
+    Tick write(PacketPtr pkt) override { return 0; }
+    Tick read(PacketPtr pkt) override { return 0; }
     AddrRangeList getAddrRanges() const override;
     System *system();
 
     void sendCompletionSignal(Addr signal_handle);
-    void updateHsaSignal(
-        Addr signal_handle, uint64_t signal_value,
-        HsaSignalCallbackFunction function = [](const uint64_t &) {});
+    void updateHsaSignal(Addr signal_handle, uint64_t signal_value,
+                         HsaSignalCallbackFunction function =
+                            [] (const uint64_t &) { });
     void updateHsaSignalAsync(Addr signal_handle, int64_t diff);
     void updateHsaSignalData(Addr value_addr, int64_t diff,
                              uint64_t *prev_value);
@@ -148,20 +140,17 @@ class GPUCommandProcessor : public DmaVirtDevice
 
     uint64_t functionalReadHsaSignal(Addr signal_handle);
 
-    Addr
-    getHsaSignalValueAddr(Addr signal_handle)
+    Addr getHsaSignalValueAddr(Addr signal_handle)
     {
         return signal_handle + offsetof(amd_signal_t, value);
     }
 
-    Addr
-    getHsaSignalMailboxAddr(Addr signal_handle)
+    Addr getHsaSignalMailboxAddr(Addr signal_handle)
     {
         return signal_handle + offsetof(amd_signal_t, event_mailbox_ptr);
     }
 
-    Addr
-    getHsaSignalEventAddr(Addr signal_handle)
+    Addr getHsaSignalEventAddr(Addr signal_handle)
     {
         return signal_handle + offsetof(amd_signal_t, event_id);
     }
@@ -174,7 +163,7 @@ class GPUCommandProcessor : public DmaVirtDevice
     VegaISA::Walker *walker;
 
     // Typedefing dmaRead and dmaWrite function pointer
-    typedef void (DmaDevice::*DmaFnPtr)(Addr, int, Event *, uint8_t *, Tick);
+    typedef void (DmaDevice::*DmaFnPtr)(Addr, int, Event*, uint8_t*, Tick);
     void initABI(HSAQueueEntry *task);
     void sanityCheckAKC(AMDKernelCode *akc);
     HSAPacketProcessor *hsaPP;
@@ -215,19 +204,18 @@ class GPUCommandProcessor : public DmaVirtDevice
          * DMA that into the HSAQueueEntry when a kernel is
          * launched.
          */
-        task->hostAMDQueueAddr =
-            hsaPP->getQueueDesc(task->queueId())->hostReadIndexPtr -
-            readDispIdOffset;
+        task->hostAMDQueueAddr = hsaPP->getQueueDesc(
+            task->queueId())->hostReadIndexPtr - readDispIdOffset;
 
         /**
          * DMA a copy of the MQD into the task. some fields of
          * the MQD will be used to initialize register state in VI
          */
         auto *mqdDmaEvent = new DmaVirtCallback<int>(
-            [=, this](const int &) { MQDDmaEvent(task); });
+            [ = ] (const int &) { MQDDmaEvent(task); });
 
-        dmaReadVirt(task->hostAMDQueueAddr, sizeof(_amd_queue_t), mqdDmaEvent,
-                    &task->amdQueue);
+        dmaReadVirt(task->hostAMDQueueAddr,
+                    sizeof(_amd_queue_t), mqdDmaEvent, &task->amdQueue);
     }
 
     /**
@@ -237,9 +225,9 @@ class GPUCommandProcessor : public DmaVirtDevice
      * a dispatch packet, which is needed to initialize register
      * state.
      */
-    void
-    MQDDmaEvent(HSAQueueEntry *task)
-    {
+     void
+     MQDDmaEvent(HSAQueueEntry *task)
+     {
         /**
          *  dGPUs on any version of ROCm and APUs starting with ROCm 2.2
          *  can perform lazy allocation of private segment (scratch) memory,
@@ -261,13 +249,12 @@ class GPUCommandProcessor : public DmaVirtDevice
             // there are any in-flight kernels and tell the user that this
             // feature still needs to be implemented.
             fatal_if(hsaPP->inFlightPkts(task->queueId()) > 1,
-                     "Needed more scratch, but kernels are in flight for "
-                     "this queue and it is unsafe to reallocate scratch. "
-                     "We need to implement additional intelligence in the "
-                     "hardware scheduling logic to support CP-driven "
-                     "queue draining and scheduling.");
-            DPRINTF(GPUCommandProc,
-                    "Not enough scratch space to launch "
+                        "Needed more scratch, but kernels are in flight for "
+                        "this queue and it is unsafe to reallocate scratch. "
+                        "We need to implement additional intelligence in the "
+                        "hardware scheduling logic to support CP-driven "
+                        "queue draining and scheduling.");
+            DPRINTF(GPUCommandProc, "Not enough scratch space to launch "
                     "kernel (%x available, %x requested bytes per "
                     "workitem). Asking host runtime to allocate more "
                     "space.\n",
@@ -275,13 +262,11 @@ class GPUCommandProcessor : public DmaVirtDevice
                     task->privMemPerItem());
 
             updateHsaSignal(task->amdQueue.queue_inactive_signal.handle, 1,
-                            [=, this](const uint64_t &dma_buffer) {
-                                WaitScratchDmaEvent(task, dma_buffer);
-                            });
+                            [ = ] (const uint64_t &dma_buffer)
+                                { WaitScratchDmaEvent(task, dma_buffer); });
 
         } else {
-            DPRINTF(GPUCommandProc,
-                    "Sufficient scratch space, launching "
+            DPRINTF(GPUCommandProc, "Sufficient scratch space, launching "
                     "kernel (%x available, %x requested bytes per "
                     "workitem).\n",
                     task->amdQueue.compute_tmpring_size_wavesize * 1024,
@@ -299,35 +284,32 @@ class GPUCommandProcessor : public DmaVirtDevice
     {
         if (dmaBuffer == 0) {
             DPRINTF(GPUCommandProc, "Host scratch allocation complete. "
-                                    "Attempting to re-read MQD\n");
+                    "Attempting to re-read MQD\n");
             /**
-             * Runtime will have updated the MQD to give us more scratch
-             * space.  Read it out and continue to pester the runtime until
-             * we get all that we need to launch.
-             *
-             * TODO: Technically only need to update private segment fields
-             * since other MQD entries won't change since we last read them.
-             */
+            * Runtime will have updated the MQD to give us more scratch
+            * space.  Read it out and continue to pester the runtime until
+            * we get all that we need to launch.
+            *
+            * TODO: Technically only need to update private segment fields
+            * since other MQD entries won't change since we last read them.
+            */
             auto cb = new DmaVirtCallback<int>(
-                [=, this](const int &) { MQDDmaEvent(task); });
+                [ = ] (const int &) { MQDDmaEvent(task); });
 
             dmaReadVirt(task->hostAMDQueueAddr, sizeof(_amd_queue_t), cb,
                         &task->amdQueue);
         } else {
             /**
-             * Poll until runtime signals us that scratch space has been
-             * allocated.
-             */
+            * Poll until runtime signals us that scratch space has been
+            * allocated.
+            */
             Addr value_addr = getHsaSignalValueAddr(
                 task->amdQueue.queue_inactive_signal.handle);
-            DPRINTF(GPUCommandProc,
-                    "Polling queue inactive signal at "
-                    "%p.\n",
-                    value_addr);
+            DPRINTF(GPUCommandProc, "Polling queue inactive signal at "
+                    "%p.\n", value_addr);
             auto cb = new DmaVirtCallback<uint64_t>(
-                [=, this](const uint64_t &dma_buffer) {
-                    WaitScratchDmaEvent(task, dma_buffer);
-                });
+                [ = ] (const uint64_t &dma_buffer)
+                { WaitScratchDmaEvent(task, dma_buffer); } );
 
             /**
              * Delay for a large amount of ticks to give the CPU time to
@@ -340,20 +322,8 @@ class GPUCommandProcessor : public DmaVirtDevice
         }
     }
 
-    /* Methods for blit kernel emulation. */
-    bool emulateBlitKernels = false;
-
-    void readBlitKernargs(HSAQueueEntry *task);
-    void processBlitKernargs(HSAQueueEntry *task, uint32_t *args);
-    void completeBlit(HSAQueueEntry *task);
-    void copyAligned(HSAQueueEntry *task, uint32_t *args);
-
-    void blitRead(BlitCopyDesc *desc, HSAQueueEntry *task);
-    void blitWrite(BlitCopyDesc *desc, HSAQueueEntry *task, uint8_t *buf);
-    void blitAck(BlitCopyDesc *desc, HSAQueueEntry *task, uint8_t *buf);
-
-    void readPreload(HSAQueueEntry *task);
-    void initPreload(HSAQueueEntry *task);
+    void readPreload(AMDKernelCode *akc, HSAQueueEntry *task);
+    void initPreload(AMDKernelCode *akc, HSAQueueEntry *task);
 };
 
 } // namespace gem5

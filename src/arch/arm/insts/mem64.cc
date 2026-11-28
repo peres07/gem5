@@ -81,9 +81,9 @@ void
 Memory64::setExcAcRel(bool exclusive, bool acrel)
 {
     if (exclusive)
-        memAccessFlags.set(Request::LLSC);
+        memAccessFlags |= Request::LLSC;
     else
-        memAccessFlags.set(ArmISA::MMU::AllowUnaligned);
+        memAccessFlags |= ArmISA::MMU::AllowUnaligned;
     if (acrel) {
         flags[IsWriteBarrier] = true;
         flags[IsReadBarrier] = true;

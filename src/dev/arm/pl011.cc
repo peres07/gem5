@@ -174,7 +174,7 @@ Pl011::write(PacketPtr pkt)
     switch (daddr) {
         case UART_DR:
           if ((data & 0xFF) == 0x04 && endOnEOT)
-              exitSimulationLoopClassic("UART received EOT");
+            exitSimLoop("UART received EOT", 0);
 
         device->writeData(data & 0xFF);
         // We're supposed to clear TXINTR when this register is

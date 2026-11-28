@@ -1023,9 +1023,6 @@ Commit::commitInsts()
 
                 // Updates misc. registers.
                 head_inst->updateMiscRegs();
-                if (head_inst->numDestRegs(MiscRegClass)) {
-                    iewStage->wakeCommittedMiscRegDependents(head_inst);
-                }
 
                 // Check instruction execution if it successfully commits and
                 // is not carrying a fault.

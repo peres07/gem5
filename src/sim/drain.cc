@@ -149,7 +149,7 @@ DrainManager::signalDrainDone()
     assert(_count > 0);
     if (--_count == 0) {
         DPRINTF(Drain, "All %u objects drained..\n", drainableCount());
-        exitSimulationLoopClassic("Finished drain");
+        exitSimLoop("Finished drain", 0);
     }
 }
 
@@ -190,14 +190,11 @@ DrainManager::drainableCount() const
     return _allDrainable.size();
 }
 
+
+
 Drainable::Drainable()
     : _drainManager(DrainManager::instance()),
-      // The active count includes only objects visited by tryDrain(). A new
-      // object has not contributed to that count, so it must not inherit a
-      // state which lets signalDrainDone() decrement it.
-      _drainState(_drainManager.state() == DrainState::Draining
-                      ? DrainState::Running
-                      : _drainManager.state())
+      _drainState(_drainManager.state())
 {
     _drainManager.registerDrainable(this);
 }

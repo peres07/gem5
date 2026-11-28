@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, 2026 Arm Limited
+ * Copyright (c) 2020-2021 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -49,7 +49,6 @@
 #include "debug/RubyResourceStalls.hh"
 #include "debug/RubyStats.hh"
 #include "mem/cache/replacement_policies/weighted_lru_rp.hh"
-#include "mem/ruby/common/Address.hh"
 #include "mem/ruby/protocol/AccessPermission.hh"
 #include "mem/ruby/system/RubySystem.hh"
 
@@ -107,19 +106,7 @@ CacheMemory::init()
     m_cache_num_sets = (m_cache_size / m_cache_assoc) / m_block_size;
     assert(m_cache_num_sets > 1);
     m_cache_num_set_bits = floorLog2(m_cache_num_sets);
-
-    if (m_cache_num_sets * m_cache_assoc * m_block_size != m_cache_size) {
-        fatal("Cache size %s is not a multiple of associativity %d * "
-              "block size %d\n",
-              m_cache_size, m_cache_assoc, m_block_size);
-    }
-
-    if ((1 << m_cache_num_set_bits) == m_cache_num_sets) {
-        m_is_power_of_2_sets = true;
-        assert(m_cache_num_set_bits > 0);
-    } else {
-        m_is_power_of_2_sets = false;
-    }
+    assert(m_cache_num_set_bits > 0);
 
     m_cache.resize(m_cache_num_sets,
                     std::vector<AbstractCacheEntry*>(m_cache_assoc, nullptr));
@@ -150,12 +137,8 @@ int64_t
 CacheMemory::addressToCacheSet(Addr address) const
 {
     assert(address == makeLineAddress(address));
-    if (m_is_power_of_2_sets) {
-        return bitSelect(address, m_start_index_bit,
-                         m_start_index_bit + m_cache_num_set_bits - 1);
-    } else {
-        return (address >> m_start_index_bit) % m_cache_num_sets;
-    }
+    return bitSelect(address, m_start_index_bit,
+                     m_start_index_bit + m_cache_num_set_bits - 1);
 }
 
 // Given a cache index: returns the index of the tag in a set.
@@ -353,31 +336,13 @@ CacheMemory::deallocate(Addr address)
 {
     DPRINTF(RubyCache, "deallocating address: %#x\n", address);
     AbstractCacheEntry* entry = lookup(address);
-    deallocate(entry);
-}
-
-void
-CacheMemory::deallocate(AbstractCacheEntry *entry)
-{
     assert(entry != nullptr);
     m_replacementPolicy_ptr->invalidate(entry->replacementData);
     uint32_t cache_set = entry->getSet();
     uint32_t way = entry->getWay();
-    m_tag_index.erase(entry->m_Address);
     delete entry;
     m_cache[cache_set][way] = NULL;
-}
-
-void
-CacheMemory::flushEntries()
-{
-    for (auto &sets : m_cache) {
-        for (auto &entry : sets) {
-            if (entry) {
-                deallocate(entry);
-            }
-        }
-    }
+    m_tag_index.erase(address);
 }
 
 // Returns with the physical address of the conflicting cache line

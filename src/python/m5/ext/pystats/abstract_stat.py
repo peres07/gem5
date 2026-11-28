@@ -1,15 +1,3 @@
-# Copyright (c) 2025 Arm Limited
-# All rights reserved.
-#
-# The license below extends only to copyright in the software and shall
-# not be construed as granting a license to any other intellectual
-# property including but not limited to intellectual property relating
-# to a hardware implementation of the functionality of the software
-# licensed hereunder.  You may use the software subject to the license
-# terms below provided that you ensure that this notice is replicated
-# unmodified and in its entirety in all distributions of the software,
-# modified or unmodified, in source code or in binary form.
-#
 # Copyright (c) 2022 The Regents of The University of California
 # All rights reserved.
 #
@@ -37,18 +25,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import re
-from collections.abc import Callable
-from re import Pattern
 from typing import (
     Any,
+    Callable,
     List,
     Optional,
+    Pattern,
     Tuple,
     Union,
 )
 
+from .serializable_stat import SerializableStat
 
-class AbstractStat:
+
+class AbstractStat(SerializableStat):
     """
     An abstract class which all PyStats inherit from.
 
@@ -57,9 +47,9 @@ class AbstractStat:
 
     def children(
         self,
-        predicate: Callable[[str], bool] | None = None,
+        predicate: Optional[Callable[[str], bool]] = None,
         recursive: bool = False,
-    ) -> list["AbstractStat"]:
+    ) -> List["AbstractStat"]:
         """Iterate through all of the children, optionally with a predicate
 
         .. code-block::
@@ -78,7 +68,7 @@ class AbstractStat:
         """
         return []
 
-    def find(self, regex: str | Pattern) -> list["AbstractStat"]:
+    def find(self, regex: Union[str, Pattern]) -> List["AbstractStat"]:
         """Find all stats that match the name, recursively through all the
         SimStats.
 
@@ -103,7 +93,7 @@ class AbstractStat:
             lambda _name: re.match(pattern, _name), recursive=True
         )
 
-    def _get_vector_item(self, item: str) -> tuple[str, int, Any] | None:
+    def _get_vector_item(self, item: str) -> Optional[Tuple[str, int, Any]]:
         """It has been the case in gem5 that SimObject vectors are stored as
         strings such as "cpu0" or "cpu1". This function splits the string into
         the SimObject name and index, (e.g.: ["cpu", 0] and ["cpu", 1]) and

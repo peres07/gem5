@@ -1,6 +1,3 @@
-# Copyright (c) 2026 The Project 12 contributors
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Sistema X86 SE com Ruby/Garnet para o Projeto 12."""
 
 import argparse
@@ -26,9 +23,6 @@ ap.set_defaults(
     routing_algorithm=1,
 )
 ap.add_argument("--p12-mapa")
-ap.add_argument("--p12-helper")
-ap.add_argument("--p12-python", action="store_true")
-ap.add_argument("--p12-aquecimento-rapido", action="store_true")
 ap.add_argument("--p12-matriz", action="store_true")
 args = ap.parse_args()
 
@@ -46,35 +40,17 @@ if args.routing_algorithm != 1:
     ap.error("o Projeto 12 requer roteamento XY (--routing-algorithm=1)")
 if args.cacheline_size != 64:
     ap.error("os workloads p12 usam linhas de cache de 64 bytes")
-if args.cpu_type not in ("X86TimingSimpleCPU", "X86O3CPU"):
-    ap.error("use X86O3CPU ou X86TimingSimpleCPU")
+if args.cpu_type != "X86TimingSimpleCPU":
+    ap.error("use --cpu-type=X86TimingSimpleCPU")
 
-rapido = args.p12_aquecimento_rapido
-if rapido and (
-    not args.p12_python or args.p12_helper or args.cpu_type != "X86O3CPU"
-):
-    ap.error("aquecimento rapido requer Python/O3 e nao usa auxiliares")
-system = System(
-    mem_mode="atomic_noncaching" if rapido else "timing",
-    mem_ranges=[AddrRange(args.mem_size)],
-)
+system = System(mem_mode="timing", mem_ranges=[AddrRange(args.mem_size)])
 system.voltage_domain = VoltageDomain(voltage=args.sys_voltage)
 system.clk_domain = SrcClockDomain(
     clock=args.sys_clock, voltage_domain=system.voltage_domain
 )
 system.cache_line_size = args.cacheline_size
 
-cpu_class = X86O3CPU if args.cpu_type == "X86O3CPU" else X86TimingSimpleCPU
-if rapido:
-    system.cpu = [
-        X86AtomicSimpleCPU(cpu_id=i) for i in range(args.num_cpus)
-    ]
-    system.medicao = [
-        X86O3CPU(cpu_id=i, switched_out=True) for i in range(args.num_cpus)
-    ]
-    system.exit_on_work_items = True
-else:
-    system.cpu = [cpu_class(cpu_id=i) for i in range(args.num_cpus)]
+system.cpu = [X86TimingSimpleCPU(cpu_id=i) for i in range(args.num_cpus)]
 for cpu in system.cpu:
     cpu.clk_domain = system.clk_domain
 
@@ -87,43 +63,16 @@ if args.p12_matriz:
 
 # O processo inicial ativa apenas o primeiro contexto. Os demais ficam
 # disponiveis para pthread_create/clone, na ordem de criacao das CPUs.
-cmd = [args.cmd] + shlex.split(args.options or "")
-processo = Process(cmd=cmd)
-if args.p12_python or args.p12_helper:
-    # Disponibiliza o diretorio pessoal ao interpretador simulado.
-    processo.pid = 100
-    processo.env = [
-        f"HOME={os.path.expanduser('~')}",
-        "GLIBC_TUNABLES=glibc.pthread.rseq=0",
-    ]
+processo = Process(cmd=[args.cmd] + shlex.split(args.options or ""))
 for i, cpu in enumerate(system.cpu):
     cpu.createInterruptController()
     system.ruby._cpu_ports[i].connectCpuPorts(cpu)
-    if i and args.p12_helper:
-        cpu.workload = Process(pid=100 + i, cmd=[args.p12_helper])
-    else:
-        cpu.workload = processo
+    cpu.workload = processo
     cpu.createThreads()
-
-if rapido:
-    for cpu in system.medicao:
-        cpu.clk_domain = system.clk_domain
-        cpu.workload = processo
-        cpu.createThreads()
 
 system.workload = SEWorkload.init_compatible(args.cmd)
 root = Root(full_system=False, system=system)
 m5.instantiate()
 evento = m5.simulate()
-if rapido:
-    if evento.getCause() != "workbegin":
-        print(f"Python nao chegou a troca para O3: {evento.getCause()}")
-        raise SystemExit(evento.getCode() or 1)
-    print(f"Trocando para O3 @ tick {m5.curTick()}", flush=True)
-    m5.switchCpus(system, list(zip(system.cpu, system.medicao)), is_ruby=True)
-    evento = m5.simulate()
-causa = evento.getCause()
-print(f"Fim @ tick {m5.curTick()}: {causa}")
-if causa == "user interrupt received":
-    raise SystemExit(130)
+print(f"Fim @ tick {m5.curTick()}: {evento.getCause()}")
 raise SystemExit(evento.getCode())

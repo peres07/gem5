@@ -36,7 +36,7 @@ from .abstract_processor import AbstractProcessor
 
 def partition_range(
     min_addr: int, max_addr: int, num_partitions: int
-) -> list[tuple]:
+) -> List[tuple]:
     assert (
         isinstance(min_addr, int)
         and isinstance(max_addr, int)
@@ -55,7 +55,7 @@ class AbstractGenerator(AbstractProcessor):
     It defines the external interface of every generator component.
     """
 
-    def __init__(self, cores: list[AbstractGeneratorCore]) -> None:
+    def __init__(self, cores: List[AbstractGeneratorCore]) -> None:
         """
         Create a list of AbstractGeneratorCore (which is an AbstractCore),
         to pass to the constructor of the AbstractProcessor. Due to the
@@ -68,7 +68,7 @@ class AbstractGenerator(AbstractProcessor):
         Keyword (optional arguments) are still allowable in the constructor of
         the inheriting classes.
         """
-        super().__init__(cores=cores, clk_freq="1GHz")
+        super().__init__(cores=cores)
 
     @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:

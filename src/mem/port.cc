@@ -118,8 +118,26 @@ DefaultResponsePort defaultResponsePort;
 
 } // anonymous namespace
 
-RequestPort::RequestPort(const std::string &name, PortID _id)
-    : Port(name, _id), _responsePort(&defaultResponsePort)
+/**
+ * Request port
+ */
+[[deprecated]]
+RequestPort::RequestPort(const std::string& name,
+                         SimObject* _owner,
+                         PortID _id):
+    Port(name, _id), _responsePort(&defaultResponsePort), owner{*_owner}
+{
+}
+
+/*** FIXME:
+ * The owner reference member is going through a deprecation path. In the
+ * meantime, it must be initialized but no valid reference is available here.
+ * Using 1 instead of nullptr prevents warning upon dereference. It should be
+ * OK until definitive removal of owner.
+ */
+RequestPort::RequestPort(const std::string& name, PortID _id) :
+    Port(name, _id), _responsePort(&defaultResponsePort),
+    owner{*reinterpret_cast<SimObject*>(1)}
 {
 }
 
@@ -196,10 +214,29 @@ RequestPort::removeTrace(PacketPtr pkt) const
  * Response port
  */
 
-ResponsePort::ResponsePort(const std::string &name, PortID id)
-    : Port(name, id),
-      _requestPort(&defaultRequestPort),
-      defaultBackdoorWarned(false)
+[[deprecated]]
+ResponsePort::ResponsePort(const std::string& name,
+                           SimObject* _owner,
+                           PortID _id):
+    Port(name, _id),
+    _requestPort(&defaultRequestPort),
+    defaultBackdoorWarned(false),
+    owner{*_owner}
+{
+}
+
+
+/*** FIXME:
+ * The owner reference member is going through a deprecation path. In the
+ * meantime, it must be initialized but no valid reference is available here.
+ * Using 1 instead of nullptr prevents warning upon dereference. It should be
+ * OK until definitive removal of owner.
+ */
+ResponsePort::ResponsePort(const std::string& name, PortID id) :
+    Port(name, id),
+    _requestPort(&defaultRequestPort),
+    defaultBackdoorWarned(false),
+    owner{*reinterpret_cast<SimObject*>(1)}
 {
 }
 

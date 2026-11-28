@@ -42,7 +42,7 @@ from m5.objects import (
     HiFive,
     IGbE_e1000,
     IOXBar,
-    PciHost,
+    PciBus,
     PMAChecker,
     Port,
     RawDiskImage,
@@ -137,7 +137,7 @@ class RISCVMatchedBoard(
 
         memory = U74Memory()
 
-        processor = U74Processor(is_fs=is_fs, clk_freq=clk_freq)
+        processor = U74Processor(is_fs=is_fs)
         super().__init__()
         AbstractBoard.__init__(
             self,
@@ -200,8 +200,21 @@ class RISCVMatchedBoard(
         """Connect the I/O devices to the I/O bus in FS mode."""
         if self._fs:
             # Add PCI
-            self.platform.pci_host.internal_connect()
-            self.platform.pci_host.connect_upper_bus(self.iobus, True)
+            self.iobus.mem_side_ports = (
+                self.platform.pci_host.up_response_port()
+            )
+            self.iobus.cpu_side_ports = (
+                self.platform.pci_host.up_request_port()
+            )
+            self.platform.pci_bus.default = (
+                self.platform.pci_host.down_response_port()
+            )
+            self.platform.pci_bus.cpu_side_ports = (
+                self.platform.pci_host.down_request_port()
+            )
+            self.platform.pci_bus.config_error_port = (
+                self.platform.pci_host.config_error.pio
+            )
 
             # Add Ethernet card
             self.ethernet = IGbE_e1000(
@@ -211,7 +224,9 @@ class RISCVMatchedBoard(
                 InterruptPin=1,
             )
 
-            self.platform.pci_host.connect_device(self.ethernet)
+            self.ethernet.upstream = self.platform.pci_host
+            self.ethernet.pio = self.platform.pci_bus.mem_side_ports
+            self.ethernet.dma = self.platform.pci_bus.cpu_side_ports
 
             if self.get_cache_hierarchy().is_ruby():
                 for device in self._off_chip_devices + self._on_chip_devices:
@@ -262,7 +277,7 @@ class RISCVMatchedBoard(
         return False
 
     @overrides(AbstractBoard)
-    def get_dma_ports(self) -> list[Port]:
+    def get_dma_ports(self) -> List[Port]:
         raise NotImplementedError(
             "RISCVBoard does not have DMA Ports. "
             "Use `has_dma_ports()` to check this."
@@ -283,17 +298,17 @@ class RISCVMatchedBoard(
             )
 
     @overrides(AbstractBoard)
-    def has_pci_host(self) -> bool:
+    def has_pci_bus(self) -> bool:
         return self.is_fullsystem()
 
     @overrides(AbstractBoard)
-    def get_pci_host(self) -> PciHost:
-        if self.has_pci_host():
-            return self.platform.pci_host
+    def get_pci_bus(self) -> PciBus:
+        if self.has_pci_bus():
+            return self.platform.pci_bus
         else:
             raise Exception(
-                "Cannot execute `get_pci_host()`: Board does not have a PCI "
-                "host to return. Use `has_pci_host()` to check this."
+                "Cannot execute `get_pci_bus()`: Board does not have a PCI "
+                "bus to return. Use `has_pci_bus()` to check this."
             )
 
     @overrides(AbstractBoard)
@@ -331,7 +346,7 @@ class RISCVMatchedBoard(
             memory.set_memory_range(self.mem_ranges)
 
     @overrides(AbstractBoard)
-    def _pre_instantiate(self, full_system: bool | None = None) -> Root:
+    def _pre_instantiate(self, full_system: Optional[bool] = None) -> Root:
         if self._fs:
             if len(self._bootloader) > 0:
                 self.workload.bootloader_addr = 0x80000000
@@ -618,7 +633,7 @@ class RISCVMatchedBoard(
         )
 
     @overrides(KernelDiskWorkload)
-    def get_default_kernel_args(self) -> list[str]:
+    def get_default_kernel_args(self) -> List[str]:
         return [
             "console=ttyS0",
             "root={root_value}",
@@ -631,10 +646,10 @@ class RISCVMatchedBoard(
         self,
         kernel: AbstractResource,
         disk_image: AbstractResource,
-        bootloader: AbstractResource | None = None,
-        readfile: str | None = None,
-        readfile_contents: str | None = None,
-        kernel_args: list[str] | None = None,
+        bootloader: Optional[AbstractResource] = None,
+        readfile: Optional[str] = None,
+        readfile_contents: Optional[str] = None,
+        kernel_args: Optional[List[str]] = None,
         exit_on_work_items: bool = True,
     ) -> None:
         self.workload = RiscvBootloaderKernelWorkload()

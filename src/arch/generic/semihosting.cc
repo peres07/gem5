@@ -549,9 +549,9 @@ BaseSemihosting::semiExit(uint64_t code, uint64_t subcode)
 {
     auto it = exitCodes.find(code);
     if (it != exitCodes.end()) {
-        exitSimulationLoopClassic(it->second, subcode);
+        exitSimLoop(it->second, subcode);
     } else {
-        exitSimulationLoopClassic(csprintf("semi:0x%x", code), subcode);
+        exitSimLoop(csprintf("semi:0x%x", code), subcode);
     }
 }
 

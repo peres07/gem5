@@ -144,10 +144,6 @@ class PhysicalMemory : public Serializable
     // Global address map
     AddrRangeMap<AbstractMemory*, 1> addrMap;
 
-    // Valid address map. Used to quickly check if an address is valid.
-    // This ignores all interleaving, unlike the addrMap above.
-    std::vector<std::pair<Addr, Addr>> validAddrMap;
-
     // All address-mapped memories
     std::vector<AbstractMemory*> memories;
 
@@ -161,8 +157,6 @@ class PhysicalMemory : public Serializable
     uint64_t sharedBackstoreSize;
 
     long pageSize;
-
-    const bool isSparseRestore;
 
     // The physical memory used to provide the memory in the simulated
     // system
@@ -184,21 +178,20 @@ class PhysicalMemory : public Serializable
      * @param kvm_map Should KVM map this memory for the guest
      */
     void createBackingStore(AddrRange range,
-                            const std::vector<AbstractMemory *> &_memories,
-                            bool conf_table_reported, bool in_addr_map,
-                            bool kvm_map);
+                            const std::vector<AbstractMemory*>& _memories,
+                            bool conf_table_reported,
+                            bool in_addr_map, bool kvm_map);
 
   public:
 
     /**
      * Create a physical memory object, wrapping a number of memories.
      */
-    PhysicalMemory(const std::string &_name,
-                   const std::vector<AbstractMemory *> &_memories,
+    PhysicalMemory(const std::string& _name,
+                   const std::vector<AbstractMemory*>& _memories,
                    bool mmap_using_noreserve,
-                   const std::string &shared_backstore,
-                   bool auto_unlink_shared_backstore,
-                   bool is_sparse_restore = false);
+                   const std::string& shared_backstore,
+                   bool auto_unlink_shared_backstore);
 
     /**
      * Unmap all the backing store we have used.

@@ -27,11 +27,9 @@ POLITICAS = ("linear", "guloso", "aleatorio", "otimo")
 def agrega(arq):
     """Resume os sorteios aleatorios dentro de cada semente de perturbacao."""
     casos = defaultdict(dict)
-    cargas = set()
     for linha in csv.DictReader(arq):
         if linha["unidade_mapa"] != "flits":
             raise ValueError("a campanha principal deve usar mapas de flits")
-        cargas.add(linha.get("carga") or "cpp")
         caso = linha["programa"], int(linha["nucleos"])
         chave = (
             linha["politica"],
@@ -44,26 +42,17 @@ def agrega(arq):
     if not casos:
         raise ValueError("CSV sem avaliacoes")
 
-    if len(cargas) != 1 or not cargas <= {"cpp", "python"}:
-        raise ValueError("o CSV deve conter um unico desenho experimental")
-    python = cargas == {"python"}
     for (programa, n), avaliacoes in sorted(casos.items()):
-        sementes_carga = (
-            tuple({chave[2] for chave in avaliacoes}) if python else PERTURBACOES
-        )
-        if python and len(sementes_carga) != 1:
-            raise ValueError("a carga Python exige a mesma semente por padrao")
-        mapas = politicas(n, python)
-        esperado = {(p, m, s) for p, m in mapas for s in sementes_carga}
+        esperado = {(p, m, s) for p, m in politicas(n) for s in PERTURBACOES}
         if esperado != set(avaliacoes):
             raise ValueError(
                 f"campanha incompleta ou inesperada: {programa}-{n}"
             )
-        for politica in dict.fromkeys(p for p, _ in mapas):
-            sementes = [m for p, m in mapas if p == politica]
+        for politica in dict.fromkeys(p for p, _ in politicas(n)):
+            sementes = [m for p, m in politicas(n) if p == politica]
 
             def pares(metrica):
-                for s in sementes_carga:
+                for s in PERTURBACOES:
                     base = float(avaliacoes["linear", 0, s][metrica])
                     valor = mean(
                         float(avaliacoes[politica, m, s][metrica])
@@ -72,18 +61,6 @@ def agrega(arq):
                     yield valor, base
 
             tempo = [v / base for v, base in pares("simTicks")]
-            if python:
-                s = sementes_carga[0]
-                base = float(avaliacoes["linear", 0, s]["simTicks"])
-                por_mapa = [
-                    float(avaliacoes[politica, m, s]["simTicks"]) / base
-                    for m in sementes
-                ]
-                erro = mean(tempo) - min(por_mapa), max(por_mapa) - mean(tempo)
-            else:
-                critico = 4.302652729696142  # t(0.975, df=2)
-                margem = critico * stdev(tempo) / len(tempo) ** 0.5
-                erro = margem, margem
             yield {
                 "programa": programa,
                 "nucleos": n,
@@ -96,8 +73,7 @@ def agrega(arq):
                 ),
                 "latencia": mean(v for v, _ in pares("latencia_rede_ciclos")),
                 "tempo": mean(tempo),
-                "carga": "python" if python else "cpp",
-                "erro_tempo": erro,
+                "erro_padrao": stdev(tempo) / len(tempo) ** 0.5,
                 "reducao_tempo": 100 * (1 - mean(tempo)),
                 "reducao_saltos": 100
                 * mean(1 - v / base for v, base in pares("average_hops")),
@@ -109,18 +85,16 @@ def graficos(linhas, pasta):
 
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
+    from matplotlib.lines import Line2D
 
-    tempo_rotulo = (
-        "Tempo relativo ao linear (mín.–máx. entre mapas)"
-        if linhas[0]["carga"] == "python"
-        else "Tempo relativo ao linear (IC 95% pareado)"
-    )
+    # Quantil bilateral de Student para as tres sementes fixas da campanha.
+    critico = 4.302652729696142  # t(0.975, df=2)
     pasta.mkdir(parents=True, exist_ok=True)
     indices = {p: i for i, p in enumerate(POLITICAS)}
     for metrica, nome, y in (
         ("distancia_medida", "distancia", "Distância ponderada (saltos)"),
         ("latencia", "latencia", "Latência média de rede (ciclos)"),
-        ("tempo", "tempo", tempo_rotulo),
+        ("tempo", "tempo", "Tempo relativo ao linear (IC 95% pareado)"),
     ):
         fig, eixos = plt.subplots(
             1, len(PROGRAMAS), figsize=(13, 4), sharey=True
@@ -141,7 +115,7 @@ def graficos(linhas, pasta):
                     width=0.36,
                     label=f"{rows}×{cols}",
                     yerr=(
-                        list(zip(*(r["erro_tempo"] for r in dados)))
+                        [critico * r["erro_padrao"] for r in dados]
                         if metrica == "tempo"
                         else None
                     ),
@@ -167,20 +141,47 @@ def graficos(linhas, pasta):
         fig.savefig(pasta / f"{nome}.png", bbox_inches="tight")
         plt.close(fig)
 
-    fig, ax = plt.subplots(layout="constrained")
-    for programa in PROGRAMAS:
-        dados = [r for r in linhas if r["programa"] == programa]
-        if dados:
+    cores = {
+        "vizinhanca": ("Vizinhança", "#1c6178"),
+        "grupos": ("Dois grupos", "#a24841"),
+        "uniforme": ("Uniforme", "#5d7445"),
+    }
+    simbolos = {
+        "guloso": ("Guloso", "o"),
+        "aleatorio": ("Aleatório", "^"),
+        "otimo": ("Ótimo", "s"),
+    }
+
+    fig, eixos = plt.subplots(1, len(MALHAS), sharex=True, sharey=True,
+                            figsize=(9.5, 4.4))
+    for (n, (rows, cols)), ax in zip(MALHAS.items(), eixos):
+        ax.set_title(f"Malha {rows} × {cols}")
+        ax.axhline(0, color="#777777", linestyle=":")
+        ax.axvline(0, color="#777777", linestyle=":")
+        ax.scatter(0, 0, color="#343434", marker="x", s=65, zorder=3)
+        for r in linhas:
+            if r["nucleos"] != n or r["politica"] == "linear":
+                continue
             ax.scatter(
-                [r["reducao_saltos"] for r in dados],
-                [r["reducao_tempo"] for r in dados],
-                label=programa,
+                r["reducao_saltos"],
+                r["reducao_tempo"],
+                color=cores[r["programa"]][1],
+                marker=simbolos[r["politica"]][1],
+                s=60, edgecolors="white", linewidths=0.7, zorder=4,
             )
-    ax.set(xlabel="Redução de saltos (%)", ylabel="Redução de tempo (%)")
-    ax.axhline(0, color="black", linestyle=":")
-    ax.axvline(0, color="black", linestyle=":")
-    ax.legend()
-    fig.savefig(pasta / "saltos_tempo.png")
+        ax.set_xlabel("Redução de saltos (%)")
+    eixos[0].set_ylabel("Redução de tempo (%)")
+
+    marcas = [
+        Line2D([], [], ls="", color=cor, marker="o", label=nome)
+        for nome, cor in cores.values()
+    ] + [
+        Line2D([], [], ls="", color="#343434", marker=s, label=nome)
+        for nome, s in (*simbolos.values(), ("Linear", "x"))
+    ]
+    fig.legend(handles=marcas, loc="lower center", ncols=4, frameon=False)
+    fig.tight_layout(rect=(0, 0.14, 1, 1))
+    fig.savefig(pasta / "saltos_tempo.png", dpi=170, bbox_inches="tight")
     plt.close(fig)
 
 

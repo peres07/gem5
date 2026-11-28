@@ -37,6 +37,7 @@ scons build/ALL/gem5.opt -j `nproc`
 ```
 """
 
+
 from m5.objects import (
     ArmDefaultRelease,
     VExpress_GEM5_Foundation,
@@ -82,7 +83,6 @@ processor = SimpleProcessor(
     cpu_type=CPUTypes.TIMING,
     isa=ISA.ARM,
     num_cores=num_ccds * num_cores_per_ccd,
-    clk_freq="4GHz",
 )
 
 release = ArmDefaultRelease()

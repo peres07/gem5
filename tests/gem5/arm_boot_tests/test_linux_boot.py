@@ -42,7 +42,7 @@ def test_boot(
     memory_class: str,
     length: str,
     systemd: bool,
-    to_tick: int | None = None,
+    to_tick: Optional[int] = None,
 ):
     name = f"{cpu}-cpu_{num_cpus}-cores_{mem_system}_{memory_class}_\
 arm_boot_test"

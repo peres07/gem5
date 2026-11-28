@@ -80,10 +80,7 @@ class ArmDemoBoard(ArmBoard):
 
         if use_kvm:
             processor = SimpleProcessor(
-                cpu_type=CPUTypes.KVM,
-                num_cores=2,
-                isa=ISA.ARM,
-                clk_freq="3GHz",
+                cpu_type=CPUTypes.KVM, num_cores=2, isa=ISA.ARM
             )
             # The ArmBoard requires a `release` to be specified. This adds all the
             # extensions or features to the system. We are setting this to for_kvm()
@@ -97,10 +94,7 @@ class ArmDemoBoard(ArmBoard):
 
         else:
             processor = SimpleProcessor(
-                cpu_type=CPUTypes.TIMING,
-                num_cores=2,
-                isa=ISA.ARM,
-                clk_freq="3GHz",
+                cpu_type=CPUTypes.TIMING, num_cores=2, isa=ISA.ARM
             )
             release = ArmDefaultRelease()
 

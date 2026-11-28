@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, 2026 Arm Limited
+ * Copyright (c) 2012-2013 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -49,7 +49,6 @@
 #include <list>
 
 #include "base/random.hh"
-#include "enums/LatencyDistribution.hh"
 #include "mem/abstract_mem.hh"
 #include "mem/port.hh"
 #include "params/SimpleMemory.hh"
@@ -118,8 +117,7 @@ class SimpleMemory : public AbstractMemory
     /**
      * Fudge factor added to the latency.
      */
-    const LatencyDistribution latencyDist;
-    const Tick latencyDistParam;
+    const Tick latency_var;
 
     /**
      * Internal (unbounded) storage to mimic the delay caused by the
@@ -134,12 +132,6 @@ class SimpleMemory : public AbstractMemory
      * the regulation.
      */
     const double bandwidth;
-
-    /**
-     * Whether to enable the backdoor mechanism or not. If disabled, it will
-     * ignore the backdoor requests when receives.
-     */
-    const bool enableBackdoor;
 
     /**
      * Track the state of the memory as either idle or busy, no need

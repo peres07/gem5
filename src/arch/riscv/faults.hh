@@ -74,7 +74,7 @@ class RiscvFault : public FaultBase
 
     bool isResumableNonMaskableInterrupt(ISA* isa) const
     {
-        return isa->reportsExtension("Smrnmi") && isNonMaskableInterrupt();
+        return isa->enableSmrnmi() && isNonMaskableInterrupt();
     }
 
     bool isPlainException() const {

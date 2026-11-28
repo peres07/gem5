@@ -313,7 +313,7 @@ ScalarPrint::operator()(std::ostream &stream, bool oneLine) const
                 ccprintf(stream, " # %s", desc);
         }
         printUnits(stream);
-        stream << "\n";
+        stream << std::endl;
     }
 }
 
@@ -397,7 +397,7 @@ VectorPrint::operator()(std::ostream &stream) const
                     ccprintf(stream, " # %s", desc);
             }
             printUnits(stream);
-            stream << "\n";
+            stream << std::endl;
         }
     }
 
@@ -564,7 +564,7 @@ DistPrint::operator()(std::ostream &stream) const
                 ccprintf(stream, " # %s", desc);
         }
         printUnits(stream);
-        stream << "\n";
+        stream << std::endl;
     }
 
     if (data.type == Dist && data.overflow != Nan) {

@@ -153,7 +153,6 @@ processor = SimpleSwitchableProcessor(
     switch_core_type=get_cpu_type_from_str(args.cpu),
     isa=ISA.X86,
     num_cores=args.num_cpus,
-    clk_freq="3GHz",
 )
 
 # Setup the motherboard.

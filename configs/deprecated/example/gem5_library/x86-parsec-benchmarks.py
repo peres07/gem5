@@ -44,7 +44,6 @@ scons build/X86/gem5.opt
     --size <simulation_size>
 ```
 """
-
 import argparse
 import time
 
@@ -151,7 +150,6 @@ processor = SimpleSwitchableProcessor(
     switch_core_type=CPUTypes.TIMING,
     isa=ISA.X86,
     num_cores=2,
-    clk_freq="3GHz",
 )
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations

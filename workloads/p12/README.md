@@ -1,13 +1,17 @@
 # Workloads do Projeto 12
 
-Os três executáveis X86 usam pthreads e recebem os mesmos argumentos:
+O simulador usa a tag gem5 v25.1.0.0 e X86TimingSimpleCPU.
+
+Os workloads do Projeto 12 são três executáveis X86 escritos em C++17 com
+pthreads. Os scripts Python configuram o gem5 e automatizam o experimento;
+não são workloads. Os três executáveis recebem os mesmos argumentos:
 `<threads> <iterações> <linhas de cache por mensagem> <semente>`.
 
 - `vizinhanca`: cada thread escreve dois buffers e lê os buffers que seus
   vizinhos no anel escreveram para ela.
 - `grupos`: os pares e os ímpares se comunicam em grupos separados. A fatia
   escrita por cada thread gira a cada iteração. `--blocos` usa dois grupos
-  contíguos em vez de intercalados.
+  contíguos em vez de intercalados, para o contraste descrito na §21.9.
 - `uniforme`: a cada iteração, cada thread lê a fatia de outro participante
   sorteado com probabilidade uniforme por seu gerador local.
 
@@ -28,8 +32,8 @@ thread seja igual ao seu índice lógico.
 ### Executar no gem5
 
 Recompile o gem5 da branch do projeto: um executável anterior ao Projeto 12
-não reconhece `p12_matriz`. O capítulo usa a versão `v25.1.0.0` como
-referência; a branch atual está baseada no gem5 26.0.0.0.
+não reconhece `p12_matriz`. A base desta entrega é a tag oficial
+`v25.1.0.0`.
 
 ```sh
 scons build/X86/gem5.opt -j2
@@ -52,6 +56,14 @@ soma local incorreta ou uma thread que não rodou na CPU esperada faz o
 programa retornar um código de erro.
 
 ### Perfil, mapeamento e avaliação automatizados
+
+O script [`reproduzir.sh`](reproduzir.sh) executa a campanha completa e gera
+os gráficos. Na raiz do repositório:
+
+```sh
+bash workloads/p12/reproduzir.sh --listar  # lista sem compilar ou simular
+bash workloads/p12/reproduzir.sh           # executa a campanha
+```
 
 Piloto para `grupos` na malha 2×4, com sementes distintas para o perfil e
 para a avaliação:
@@ -121,8 +133,7 @@ prevista. Só as L1 se movem; as posições fixas são as do perfil linear.
 `guloso` executa a construção e os desempates da §21.2.4, sem rever escolhas.
 Há uma divergência no PDF: com os desempates centrais especificados, o
 primeiro grupo da figura 21.2 ocupa `1, 2, 5, 6` e deixa o outro nas bordas.
-Isso dá distância média `2`, não `16/12`. O segundo valor é o ótimo (dois
-blocos 2×2), também obtido por `guloso-trocas`, extensão da §21.13 oferecida
-fora da campanha principal. Para o anel da figura 21.1, o linear custa
-`30/16`, a serpentina `18/16` e o ciclo hamiltoniano `16/16`; esses valores
-são para o tráfego ideal entre vizinhos, sem L2 nem diretórios.
+Isso dá distância média `2`, não `16/12`. A busca exaustiva encontra o
+ótimo de `16/12`, com dois blocos 2×2. No anel da figura 21.1, o linear
+custa `30/16`, a serpentina `18/16` e o ciclo hamiltoniano `16/16`; esses
+valores são para o tráfego ideal entre vizinhos, sem L2 nem diretórios.

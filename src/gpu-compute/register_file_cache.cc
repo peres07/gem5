@@ -51,7 +51,8 @@ RegisterFileCache::RegisterFileCache(const RegisterFileCacheParams &p)
 }
 
 RegisterFileCache::~RegisterFileCache()
-{}
+{
+}
 
 void
 RegisterFileCache::setParent(ComputeUnit *_computeUnit)
@@ -70,15 +71,14 @@ RegisterFileCache::dumpLL() const
 {
     std::stringstream ss;
     ss << "lru_order: ";
-    for (auto i = lruHead; i != nullptr; i = i->next) {
+    for (auto i=lruHead; i!=nullptr; i=i->next) {
         if (i->prev == nullptr) {
             ss << "reg: " << i->regIdx << " ";
         } else {
-            ss << "reg: " << i->regIdx << " (prev: " << i->prev->regIdx
-               << ") ";
+            ss << "reg: " << i->regIdx << " (prev: " << i->prev->regIdx<<") ";
         }
         if (i->next != nullptr) {
-            ss << " (next: " << i->next->regIdx << ") ";
+            ss << " (next: " << i->next->regIdx<<") ";
         }
     }
     ss << "\n";
@@ -94,7 +94,7 @@ RegisterFileCache::markRFC(int regIdx)
     if (lruHash.find(regIdx) == lruHash.end()) {
         if (lruHead == nullptr) {
             DPRINTF(GPURFC, "RFC SIMD[%d] cache miss inserting physReg[%d]\n",
-                    simdId, regIdx);
+                simdId, regIdx);
             OrderedRegs *oreg = new OrderedRegs(regIdx);
             lruHash[regIdx] = oreg;
             lruHead = oreg;
@@ -104,26 +104,24 @@ RegisterFileCache::markRFC(int regIdx)
 
         if (lruHash.size() >= _capacity) {
             int val = lruTail->regIdx;
-            DPRINTF(GPURFC,
-                    "RFC SIMD[%d] cache miss inserting "
-                    "physReg[%d] evicting physReg[%d]\n",
-                    simdId, regIdx, val);
+            DPRINTF(GPURFC, "RFC SIMD[%d] cache miss inserting "
+                "physReg[%d] evicting physReg[%d]\n", simdId, regIdx, val);
 
             lruTail = lruTail->prev;
             lruTail->next = nullptr;
             lruHash.erase(val);
         } else {
             DPRINTF(GPURFC, "RFC SIMD[%d] cache miss inserting physReg[%d]\n",
-                    simdId, regIdx);
+                simdId, regIdx);
         }
     } else { // Exists in cache need to update
-        DPRINTF(GPURFC, "RFC SIMD[%d] cache hit physReg[%d]\n", simdId,
-                regIdx);
+        DPRINTF(GPURFC, "RFC SIMD[%d] cache hit physReg[%d]\n",
+            simdId, regIdx);
 
         if (lruHead->regIdx == regIdx) {
             return;
         }
-        if (lruHash[regIdx] == lruTail) {
+        if (lruHash[regIdx]==lruTail) {
             lruTail = lruHash[regIdx]->prev;
         }
         if (lruHash[regIdx]->next != nullptr) {
@@ -143,12 +141,13 @@ RegisterFileCache::markRFC(int regIdx)
 void
 RegisterFileCache::waveExecuteInst(Wavefront *w, GPUDynInstPtr ii)
 {
-    if (!ii->isLoad() && !(ii->isAtomic() || ii->isMemSync())) {
+    if (!ii->isLoad()
+        && !(ii->isAtomic() || ii->isMemSync())) {
         Cycles delay(computeUnit->rfcLength());
         Tick tickDelay = computeUnit->cyclesToTicks(delay);
 
-        for (const auto &dstVecOp : ii->dstVecRegOperands()) {
-            for (const auto &physIdx : dstVecOp.physIndices()) {
+        for (const auto& dstVecOp : ii->dstVecRegOperands()) {
+            for (const auto& physIdx : dstVecOp.physIndices()) {
                 enqCacheInsertEvent(physIdx, tickDelay);
             }
         }
@@ -158,7 +157,8 @@ RegisterFileCache::waveExecuteInst(Wavefront *w, GPUDynInstPtr ii)
 void
 RegisterFileCache::enqCacheInsertEvent(uint32_t regIdx, uint64_t delay)
 {
-    schedule(new MarkRegCachedEvent(this, regIdx), curTick() + delay);
+    schedule(new MarkRegCachedEvent(this, regIdx),
+                curTick() + delay);
 }
 
 void
@@ -167,4 +167,4 @@ RegisterFileCache::MarkRegCachedEvent::process()
     rfc->markRFC(regIdx);
 }
 
-} // namespace gem5
+}

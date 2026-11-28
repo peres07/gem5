@@ -56,7 +56,6 @@ class SimpleNetwork(RubyNetwork):
                                 routers; 0 indicates infinite buffering",
     )
     endpoint_bandwidth = Param.Int(1000, "bandwidth adjustment factor")
-    trace_routes = Param.Bool(False, "Generate trace with all used routes")
 
     physical_vnets_channels = VectorParam.Int(
         [],

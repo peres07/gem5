@@ -148,7 +148,7 @@ class Memory64 : public MightBeMicro64
 
     void startDisassembly(std::ostream &os) const;
 
-    Request::Flags memAccessFlags;
+    unsigned memAccessFlags;
 
     void setExcAcRel(bool exclusive, bool acrel);
 };

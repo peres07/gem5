@@ -49,20 +49,11 @@
 namespace gem5
 {
 
-PciHost::PciHost(const PciHostParams &p)
-    : ClockedObject(p),
-      PciUpstream(p.up_to_down, p.config_error, p.devices, p.name)
+PciHost::PciHost(const PciHostParams &p) : PciUpstream(p)
 {}
 
 PciHost::~PciHost()
 {
-}
-
-void
-PciHost::init()
-{
-    ClockedObject::init();
-    PciUpstream::init();
 }
 
 GenericPciHost::GenericPciHost(const GenericPciHostParams &p)
@@ -79,16 +70,6 @@ GenericPciHost::~GenericPciHost()
 {
 }
 
-Addr
-GenericPciHost::devConfigAddr(PciBusNum bus_num,
-                              const PciDevAddr &dev_addr) const
-{
-    Addr bus_addr = (bus_num << BUS_OFFSET) + (dev_addr.dev << DEVICE_OFFSET) +
-                    (dev_addr.func << FUNCTION_OFFSET);
-
-    return confBase + (bus_addr << confDeviceBits);
-}
-
 AddrRange
 GenericPciHost::getConfigAddrRange() const
 {
@@ -96,44 +77,34 @@ GenericPciHost::getConfigAddrRange() const
 }
 
 AddrRange
-GenericPciHost::interfaceConfigRange(const PciDevice &device) const
+GenericPciHost::interfaceConfigRange(const PciDevAddr &dev_addr) const
 {
-    Addr start = devConfigAddr(device.getBusNum(), device.devAddr());
+    Addr bus_addr = (getBusNum() << 8) + (dev_addr.dev << 3) + dev_addr.func;
+
+    Addr start = confBase + (bus_addr << confDeviceBits);
 
     return RangeSize(start, 1 << confDeviceBits);
 }
 
-AddrRange
-GenericPciHost::interfaceBusConfigRange(PciBusNum start_bus,
-                                        PciBusNum end_bus) const
+void
+GenericPciHost::interfacePostInt(const PciDevAddr &addr, PciIntPin pin)
 {
-    if (end_bus < start_bus) {
-        return AddrRange();
-    }
-
-    Addr start = devConfigAddr(start_bus, PciDevAddr(0, 0));
-    Addr size = static_cast<Addr>(end_bus - start_bus + 1)
-                << (BUS_OFFSET + confDeviceBits);
-
-    return RangeSize(start, size);
+    platform.postPciInt(mapPciInterrupt(addr, pin));
 }
 
 void
-GenericPciHost::interfacePostInt(const PciDevice &device)
+GenericPciHost::interfaceClearInt(const PciDevAddr &addr, PciIntPin pin)
 {
-    platform.postPciInt(mapPciInterrupt(device));
-}
-
-void
-GenericPciHost::interfaceClearInt(const PciDevice &device)
-{
-    platform.clearPciInt(mapPciInterrupt(device));
+    platform.clearPciInt(mapPciInterrupt(addr, pin));
 }
 
 uint32_t
-GenericPciHost::mapPciInterrupt(const PciDevice &device) const
+GenericPciHost::mapPciInterrupt(const PciDevAddr &addr, PciIntPin pin) const
 {
-    return device.interruptLine();
+    const PciDevice *dev(getDevice(addr));
+    assert(dev);
+
+    return dev->interruptLine();
 }
 
 } // namespace gem5

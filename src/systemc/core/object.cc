@@ -293,9 +293,8 @@ pickUniqueName(::sc_core::sc_object *parent, std::string base)
         return Object::getFromScObject(parent)->pickUniqueName(base);
 
     std::string seed = base;
-    while (!nameIsUnique(&topLevelObjects, &topLevelEvents(), base)) {
+    while (!nameIsUnique(&topLevelObjects, &topLevelEvents, base))
         base = ::sc_core::sc_gen_unique_name(seed.c_str());
-    }
 
     return base;
 }
@@ -321,7 +320,7 @@ pickParentObj()
     if (!objParentStack.empty())
         return objParentStack.top();
 
-    Process *p = scheduler().current();
+    Process *p = scheduler.current();
     if (p)
         return p;
 

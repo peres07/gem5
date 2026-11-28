@@ -44,69 +44,49 @@ namespace gem5
 
 namespace VegaISA
 {
-class VEGAGPUStaticInst : public GPUStaticInst
-{
-  public:
-    VEGAGPUStaticInst(const std::string &opcode);
-    ~VEGAGPUStaticInst();
-
-    void
-    generateDisassembly() override
+    class VEGAGPUStaticInst : public GPUStaticInst
     {
-        disassembly = _opcode;
-    }
+      public:
+        VEGAGPUStaticInst(const std::string &opcode);
+        ~VEGAGPUStaticInst();
 
-    bool
-    isFlatScratchRegister(int opIdx) override
-    {
-        return isFlatScratchReg(opIdx);
-    }
+        void generateDisassembly() override { disassembly = _opcode; }
 
-    bool
-    isExecMaskRegister(int opIdx) override
-    {
-        return isExecMask(opIdx);
-    }
+        bool
+        isFlatScratchRegister(int opIdx) override
+        {
+            return isFlatScratchReg(opIdx);
+        }
 
-    void
-    initOperandInfo() override
-    {
-        return;
-    }
-    int
-    getOperandSize(int opIdx) override
-    {
-        return 0;
-    }
+        bool
+        isExecMaskRegister(int opIdx) override
+        {
+            return isExecMask(opIdx);
+        }
 
-    /**
-     * Return the number of tokens needed by the coalescer. In VEGA there
-     * is generally one packet per memory request per lane generated. In
-     * HSAIL, the number of dest operands is used for loads and src
-     * operands for stores. This method should be overriden on a per-inst
-     * basis when this value differs.
-     */
-    int
-    coalescerTokenCount() const override
-    {
-        return 1;
-    }
-    ScalarRegU32
-    srcLiteral() const override
-    {
-        return _srcLiteral;
-    }
+        void initOperandInfo() override { return; }
+        int getOperandSize(int opIdx) override { return 0; }
 
-  protected:
-    void panicUnimplemented() const;
+        /**
+          * Return the number of tokens needed by the coalescer. In VEGA there
+          * is generally one packet per memory request per lane generated. In
+          * HSAIL, the number of dest operands is used for loads and src
+          * operands for stores. This method should be overriden on a per-inst
+          * basis when this value differs.
+          */
+        int coalescerTokenCount() const override { return 1; }
+        ScalarRegU32 srcLiteral() const override { return _srcLiteral; }
 
-    /**
-     * if the instruction has a src literal - an immediate
-     * value that is part of the instruction stream - we
-     * store that here
-     */
-    ScalarRegU32 _srcLiteral;
-}; // class VEGAGPUStaticInst
+      protected:
+        void panicUnimplemented() const;
+
+        /**
+         * if the instruction has a src literal - an immediate
+         * value that is part of the instruction stream - we
+         * store that here
+         */
+        ScalarRegU32 _srcLiteral;
+    }; // class VEGAGPUStaticInst
 
 } // namespace VegaISA
 } // namespace gem5

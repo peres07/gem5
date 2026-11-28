@@ -42,7 +42,6 @@
 Module contains wrappers for test items that have been
 loaded by the testlib :class:`testlib.loader.Loader`.
 """
-
 import itertools
 
 import testlib.uid as uid
@@ -239,7 +238,7 @@ class LoadedLibrary(LoadedTestable):
         """
         return itertools.chain(
             itertools.chain(*(suite.fixtures for suite in self.obj)),
-            *(self.test_fixtures(suite) for suite in self.obj),
+            *(self.test_fixtures(suite) for suite in self.obj)
         )
 
     def test_fixtures(self, suite):

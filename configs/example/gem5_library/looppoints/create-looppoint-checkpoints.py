@@ -104,7 +104,6 @@ processor = SimpleProcessor(
     isa=ISA.X86,
     # LoopPoint can work with multicore workloads
     num_cores=9,
-    clk_freq="3GHz",
 )
 
 board = SimpleBoard(

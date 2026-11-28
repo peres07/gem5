@@ -35,7 +35,6 @@ python3 ./update-gem5-versions.py --uri <uri> --db <db_name> /
    --collection <collection_name> --version <version> /
    --category <category> --outfile <outfile>
 """
-
 import argparse
 import json
 

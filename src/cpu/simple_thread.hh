@@ -244,7 +244,7 @@ class SimpleThread : public ThreadState, public ThreadContext
     void
     clearArchRegs() override
     {
-        _pcState.reset(isa->newPCState());
+        set(_pcState, isa->newPCState());
         for (auto &rf: regFiles)
             rf.clear();
         isa->clear();

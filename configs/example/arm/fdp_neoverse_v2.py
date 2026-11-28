@@ -223,8 +223,7 @@ cache_hierarchy = CacheHierarchy()
 # Create the processor with one core
 
 processor = BaseCPUProcessor(
-    cores=[BaseCPUCore(neoverse_v2.NeoverseV2(), isa=ISA.ARM)],
-    clk_freq="3GHz",
+    cores=[BaseCPUCore(neoverse_v2.NeoverseV2(), isa=ISA.ARM)]
 )
 
 for core in processor.cores:

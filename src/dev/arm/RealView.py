@@ -75,6 +75,7 @@ from m5.objects.PciDevice import (
     PciLegacyIoBar,
 )
 from m5.objects.PciHost import *
+from m5.objects.PciUpstream import PciBus
 from m5.objects.Platform import Platform
 from m5.objects.PS2 import *
 from m5.objects.Scmi import *
@@ -868,6 +869,11 @@ class RealView(Platform):
             else:
                 dma_ports.append(device.dma)
 
+    def _attach_pci_device(self, device, upstream, bus):
+        device.pio = bus.mem_side_ports
+        device.dma = bus.cpu_side_ports
+        device.upstream = upstream
+
     def _attach_io(self, devices, *args, **kwargs):
         for d in devices:
             self._attach_device(d, *args, **kwargs)
@@ -1006,6 +1012,7 @@ class VExpress_EMM(RealView):
         conf_device_bits=16,
         pci_pio_base=0,
     )
+    pci_bus = PciBus()
 
     sys_counter = SystemCounter()
     generic_timer = GenericTimer(
@@ -1118,19 +1125,21 @@ class VExpress_EMM(RealView):
         )
 
     def attachPciDevice(self, device):
-        self.pci_host.connect_device(device)
+        self._attach_pci_device(device, self.pci_host, self.pci_bus)
 
     def _attach_pci(self, devices, bus, dma_ports=None):
-        self.pci_host.internal_connect()
+        self.pci_bus.cpu_side_ports = self.pci_host.down_request_port()
+        self.pci_bus.default = self.pci_host.down_response_port()
+        self.pci_bus.config_error_port = self.pci_host.config_error.pio
 
+        bus.mem_side_ports = self.pci_host.up_response_port()
         if dma_ports is None:
-            self.pci_host.connect_upper_bus(bus, True)
+            bus.cpu_side_ports = self.pci_host.up_request_port()
         else:
-            pci_dma = self.pci_host.connect_upper_bus(bus, False)
-            dma_ports.append(pci_dma)
+            dma_ports.append(self.pci_host.up_request_port())
 
         for d in devices:
-            self.pci_host.connect_device(d)
+            self._attach_pci_device(d, self.pci_host, self.pci_bus)
 
     def enableMSIX(self):
         self.gic = Gic400(
@@ -1460,6 +1469,7 @@ class VExpress_GEM5_Base(RealView):
         int_base=100,
         int_count=4,
     )
+    pci_bus = PciBus()
 
     energy_ctrl = EnergyCtrl(pio_addr=0x10000000)
 
@@ -1513,19 +1523,21 @@ class VExpress_GEM5_Base(RealView):
         self._num_pci_dev += 1
         device.pci_dev = self._num_pci_dev
         device.pci_func = 0
-        self.pci_host.connect_device(device)
+        self._attach_pci_device(device, self.pci_host, self.pci_bus)
 
     def _attach_pci(self, devices, bus, dma_ports=None):
-        self.pci_host.internal_connect()
+        self.pci_bus.cpu_side_ports = self.pci_host.down_request_port()
+        self.pci_bus.default = self.pci_host.down_response_port()
+        self.pci_bus.config_error_port = self.pci_host.config_error.pio
 
+        bus.mem_side_ports = self.pci_host.up_response_port()
         if dma_ports is None:
-            self.pci_host.connect_upper_bus(bus, True)
+            bus.cpu_side_ports = self.pci_host.up_request_port()
         else:
-            pci_dma = self.pci_host.connect_upper_bus(bus, False)
-            dma_ports.append(pci_dma)
+            dma_ports.append(self.pci_host.up_request_port())
 
         for d in devices:
-            self.pci_host.connect_device(d)
+            self._attach_pci_device(d, self.pci_host, self.pci_bus)
 
     def attachSmmu(self, devices, bus):
         """

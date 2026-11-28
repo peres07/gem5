@@ -36,7 +36,6 @@ scons build/ALL/gem5.opt -j $(nproc)
 ./build/ALL/gem5.opt configs/example/gem5_library/arm-demo-ubuntu-run.py
 ```
 """
-
 import argparse
 
 from gem5.prebuilt.demo.arm_demo_board import ArmDemoBoard

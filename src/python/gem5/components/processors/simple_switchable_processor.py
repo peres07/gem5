@@ -24,6 +24,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from typing import Optional
+
 from m5.util import warn
 
 from ...isas import ISA
@@ -53,8 +55,6 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
         switch_core_type: CPUTypes,
         num_cores: int,
         isa: ISA = None,
-        *,
-        clk_freq: str,
     ) -> None:
         """
         :param starting_core_type: The CPU type for each type in the processor
@@ -64,8 +64,6 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
         to.
 
         :param isa: The ISA of the processor.
-
-        :param clk_freq: The clock frequency for the processor's cores.
         """
 
         if num_cores <= 0:
@@ -89,9 +87,7 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
         }
 
         super().__init__(
-            switchable_cores=switchable_cores,
-            starting_cores=self._start_key,
-            clk_freq=clk_freq,
+            switchable_cores=switchable_cores, starting_cores=self._start_key
         )
 
     @overrides(SwitchableProcessor)

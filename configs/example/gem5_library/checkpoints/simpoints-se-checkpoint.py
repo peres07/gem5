@@ -100,7 +100,6 @@ processor = SimpleProcessor(
     isa=ISA.X86,
     # SimPoints only works with one core
     num_cores=1,
-    clk_freq="3GHz",
 )
 
 board = SimpleBoard(

@@ -38,13 +38,9 @@ class FileLock:
     compatible as it doesn't rely on ``msvcrt`` or ``fcntl`` for the locking.
     """
 
-    def __init__(self, file_name, timeout=10, delay=0.05, on_wait=None):
+    def __init__(self, file_name, timeout=10, delay=0.05):
         """Prepare the file locker. Specify the file to lock and optionally
         the maximum timeout and the delay between each attempt to lock.
-
-        If supplied, ``on_wait`` is called with the elapsed wait in seconds
-        on contention and once per minute thereafter. It does not indicate
-        whether the lock holder is making progress.
         """
         if timeout is not None and delay is None:
             raise ValueError(
@@ -55,7 +51,6 @@ class FileLock:
         self.file_name = file_name
         self.timeout = timeout
         self.delay = delay
-        self.on_wait = on_wait
 
     def acquire(self):
         """Acquire the lock, if possible. If the lock is in use, it check again
@@ -63,8 +58,7 @@ class FileLock:
         exceeds ``timeout`` number of seconds, in which case it throws
         an exception.
         """
-        start_time = time.monotonic()
-        next_notice = 0
+        start_time = time.time()
         while True:
             try:
                 self.fd = os.open(
@@ -76,9 +70,10 @@ class FileLock:
                 if e.errno != errno.EEXIST:
                     raise
                 solution_message = (
-                    f"Lock file: '{self.lockfile}'. Another process may be "
-                    "using this resource. Only remove the lock after "
-                    "confirming no process on any sharing host owns it."
+                    "This is likely due to the existence"
+                    " of the lock file '{}'. If there's no other process"
+                    " the lock file, you can manually delete the lock file and"
+                    " rerun the script.".format(self.lockfile)
                 )
                 if self.timeout is None:
                     raise FileLockException(
@@ -86,16 +81,11 @@ class FileLock:
                             self.file_name, solution_message
                         )
                     )
-                elapsed = time.monotonic() - start_time
-                if elapsed >= self.timeout:
+                if (time.time() - start_time) >= self.timeout:
                     raise FileLockException(
-                        f"Timed out after {elapsed:.0f} seconds waiting for "
-                        f"{self.file_name}. {solution_message}"
+                        f"Timeout occured. {solution_message}"
                     )
-                if self.on_wait is not None and elapsed >= next_notice:
-                    self.on_wait(elapsed)
-                    next_notice = elapsed + 60
-                time.sleep(min(self.delay, self.timeout - elapsed))
+                time.sleep(self.delay)
 
     #        self.is_locked = True
 

@@ -246,7 +246,8 @@ ListenSocketInet::listen()
         _port++;
         fatal_if(_port > 65536, "%s: cannot find an available port.", name());
     }
-    inform("%s: Listening for connections on %s\n", name(), *this);
+    ccprintf(std::cerr, "%s: Listening for connections on %s\n",
+            name(), *this);
 }
 
 void
@@ -294,7 +295,8 @@ ListenSocketUnix::listen()
     fatal_if(::listen(fd, 1) == -1, "%s: Failed to listen on %s: %s\n",
             name(), *this, strerror(errno));
 
-    inform("%s: Listening for connections on %s\n", name(), *this);
+    ccprintf(std::cerr, "%s: Listening for connections on %s\n",
+            name(), *this);
 
     setListening();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026 Arm Limited
+ * Copyright (c) 2024 Arm Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -61,37 +61,37 @@ PartitionFieldExtension::clone() const
 uint64_t
 PartitionFieldExtension::getPartitionID() const
 {
-    return bundle._partitionID;
+    return this->_partitionID;
 }
 
 uint64_t
 PartitionFieldExtension::getPartitionMonitoringID() const
 {
-    return bundle._partitionMonitoringID;
+    return this->_partitionMonitoringID;
 }
 
 bool
 PartitionFieldExtension::getMpamNS() const
 {
-    return bundle._ns;
+    return this->_ns;
 }
 
 void
 PartitionFieldExtension::setPartitionID(uint64_t id)
 {
-    bundle._partitionID = id;
+    this->_partitionID = id;
 }
 
 void
 PartitionFieldExtension::setPartitionMonitoringID(uint64_t id)
 {
-    bundle._partitionMonitoringID = id;
+    this->_partitionMonitoringID = id;
 }
 
 void
 PartitionFieldExtension::setMpamNS(bool ns)
 {
-    bundle._ns = ns;
+    this->_ns = ns;
 }
 
 

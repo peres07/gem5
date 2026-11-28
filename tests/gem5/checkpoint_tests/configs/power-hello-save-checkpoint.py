@@ -60,10 +60,7 @@ cache_hierarchy = NoCache()
 
 memory = SingleChannelDDR3_1600(size="32MiB")
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING,
-    isa=ISA.POWER,
-    num_cores=2,
-    clk_freq="3GHz",
+    cpu_type=CPUTypes.TIMING, isa=ISA.POWER, num_cores=2
 )
 
 board = SimpleBoard(

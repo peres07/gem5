@@ -61,6 +61,7 @@ into beforehand.
 ```
 """
 
+
 import gem5.utils.multisim as multisim
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
@@ -78,10 +79,7 @@ for process_id in range(5):
     cache_hierarchy = NoCache()
     memory = SingleChannelDDR3_1600(size="32MiB")
     processor = SimpleProcessor(
-        cpu_type=CPUTypes.TIMING,
-        isa=ISA.X86,
-        num_cores=1,
-        clk_freq="1GHz",
+        cpu_type=CPUTypes.TIMING, isa=ISA.X86, num_cores=1
     )
     board = SimpleBoard(
         clk_freq="1GHz",

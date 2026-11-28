@@ -49,10 +49,7 @@ from gem5.components.processors.simple_switchable_processor import (
 )
 from gem5.isas import ISA
 from gem5.resources.resource import obtain_resource
-from gem5.simulate.exit_handler import (
-    ExitHandler,
-    ExitHypercall,
-)
+from gem5.simulate.exit_handler import ExitHandler
 from gem5.simulate.simulator import Simulator
 from gem5.utils.override import overrides
 from gem5.utils.requires import requires
@@ -80,7 +77,7 @@ cache_hierarchy = MESITwoLevelCacheHierarchy(
 )
 
 # Set up the system memory.
-memory = SingleChannelDDR3_1600()
+memory = SingleChannelDDR3_1600(size="3GiB")
 
 # Here we set up the processor. This is a special switchable processor in which
 # a starting core type and a switch core type must be specified. Once a
@@ -95,7 +92,6 @@ processor = SimpleSwitchableProcessor(
     switch_core_type=CPUTypes.TIMING,
     isa=ISA.X86,
     num_cores=2,
-    clk_freq="3GHz",
 )
 
 # Here we set up the board. The X86Board allows for FS mode (full system) or
@@ -121,14 +117,12 @@ board.set_workload(workload)
 # default after-boot exit handler to switch processors.
 
 # You can inherit from either the class that handles a certain hypercall by
-# default, or inherit directly from ExitHandler and specify an ExitHypercall.
+# default, or inherit directly from ExitHandler and specify a hypercall number.
 # See src/python/gem5/simulate/exit_handler.py for more information on which
 # behaviors map to which hypercalls, and what the default behaviors are.
 
 
-class CustomKernelBootedExitHandler(
-    ExitHandler, hypercall=ExitHypercall.KERNEL_BOOTED
-):
+class CustomKernelBootedExitHandler(ExitHandler, hypercall_num=1):
     @overrides(ExitHandler)
     def _process(self, simulator: "Simulator") -> None:
         print("First exit: kernel booted")
@@ -138,9 +132,7 @@ class CustomKernelBootedExitHandler(
         return False
 
 
-class CustomAfterBootExitHandler(
-    ExitHandler, hypercall=ExitHypercall.AFTER_BOOT
-):
+class CustomAfterBootExitHandler(ExitHandler, hypercall_num=2):
     @overrides(ExitHandler)
     def _process(self, simulator: "Simulator") -> None:
         simulator.switch_processor()
@@ -150,9 +142,7 @@ class CustomAfterBootExitHandler(
         return False
 
 
-class AfterBootScriptExitHandler(
-    ExitHandler, hypercall=ExitHypercall.AFTER_BOOT_SCRIPT
-):
+class AfterBootScriptExitHandler(ExitHandler, hypercall_num=3):
     @overrides(ExitHandler)
     def _process(self, simulator: "Simulator") -> None:
         print(f"Third exit: {self.get_handler_description()}")

@@ -26,6 +26,7 @@
 
 """Tests for ArtifactFileDB"""
 
+
 import json
 import os
 import unittest

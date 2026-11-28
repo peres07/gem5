@@ -1,15 +1,3 @@
-# Copyright (c) 2026 ARM Limited
-# All rights reserved.
-#
-# The license below extends only to copyright in the software and shall
-# not be construed as granting a license to any other intellectual
-# property including but not limited to intellectual property relating
-# to a hardware implementation of the functionality of the software
-# licensed hereunder.  You may use the software subject to the license
-# terms below provided that you ensure that this notice is replicated
-# unmodified and in its entirety in all distributions of the software,
-# modified or unmodified, in source code or in binary form.
-#
 # Copyright (c) 1999-2008 Mark D. Hill and David A. Wood
 # Copyright (c) 2009 The Hewlett-Packard Development Company
 # All rights reserved.
@@ -52,7 +40,6 @@ class Transition(Symbol):
         actions,
         request_types,
         location,
-        ignore_resources,
     ):
         ident = f"{state}|{event}"
         super().__init__(table, ident, location)
@@ -77,15 +64,12 @@ class Transition(Symbol):
         self.request_types = [machine.request_types[s] for s in request_types]
         self.resources = {}
 
-        if ignore_resources:
-            print("%s: transition ignores resource allocation" % location)
-        else:
-            for action in self.actions:
-                for var, value in action.resources.items():
-                    num = int(value)
-                    if var in self.resources:
-                        num += int(value)
-                    self.resources[var] = str(num)
+        for action in self.actions:
+            for var, value in action.resources.items():
+                num = int(value)
+                if var in self.resources:
+                    num += int(value)
+                self.resources[var] = str(num)
 
     def __repr__(self):
         return "[Transition: ({!r}, {!r}) -> {!r}, {!r}]".format(

@@ -76,8 +76,10 @@ arm_fs_long_tests = [
     "realview64-simple-timing-ruby",
     "realview64-simple-timing-dual-ruby",
     "realview64-o3-dual-ruby",
-    # The following tests fail while bringing up secondary CPUs.
-    # https://github.com/gem5/gem5/issues/3448
+    # The following tests fail. These are recorded in the GEM5-640
+    # Jira issue.
+    #
+    # https://gem5.atlassian.net/browse/GEM5-640
     #'realview-simple-atomic-dual',
     #'realview-simple-timing-dual',
     #'realview-o3-dual',
@@ -85,7 +87,11 @@ arm_fs_long_tests = [
     #'realview-simple-timing-dual-ruby',
 ]
 
+tarball = "aarch-system-20220707.tar.bz2"
+url = config.resource_url + "/arm/" + tarball
 filepath = os.path.dirname(os.path.abspath(__file__))
+path = joinpath(config.bin_path, "arm")
+arm_fs_binaries = DownloadedArchive(url, path, tarball)
 
 
 def support_kvm():
@@ -128,6 +134,7 @@ for name in arm_fs_quick_tests:
             "configs",
             name + ".py",
         ),
+        path,
         config.base_dir,
     ]
     gem5_verify_config(
@@ -138,6 +145,7 @@ for name in arm_fs_quick_tests:
         valid_isas=(constants.all_compiled_tag,),
         length=constants.quick_tag,
         valid_hosts=valid_hosts,
+        fixtures=(arm_fs_binaries,),
         uses_kvm=name in arm_fs_kvm_tests,
     )
 
@@ -153,16 +161,16 @@ for name in arm_fs_long_tests:
             "configs",
             name + ".py",
         ),
+        path,
         config.base_dir,
     ]
-    if name.endswith("-ruby"):
-        args.append("--protocol=CHI")
     gem5_verify_config(
         name=name,
         verifiers=verifier_list(name),  # TODO: Add basic stat verifiers
         config=joinpath(filepath, "run.py"),
         config_args=args,
-        valid_isas=(constants.all_compiled_tag,),
+        valid_isas=(constants.arm_x86_tag,),
         length=constants.long_tag,
+        fixtures=(arm_fs_binaries,),
         uses_kvm=name in arm_fs_kvm_tests,
     )

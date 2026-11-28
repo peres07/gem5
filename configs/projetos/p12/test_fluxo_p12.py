@@ -4,10 +4,6 @@
 import csv
 import io
 import json
-import shlex
-import subprocess
-import sys
-from io import StringIO
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
@@ -108,10 +104,6 @@ class TesteFluxo(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "conservacao"):
             extrai(self.pasta, 2, 4)
-        marcador = "---------- Begin Simulation Statistics ----------"
-        stats.write_text(original[:original.rfind(marcador)])
-        with self.assertRaisesRegex(ValueError, "dump da ROI"):
-            extrai(self.pasta, 2, 4)
         stats.write_text(original)
         log.write_text(log_valido().replace("cpu=7", "cpu=6"))
         with self.assertRaisesRegex(ValueError, "thread-CPU"):
@@ -181,36 +173,6 @@ class TesteFluxo(unittest.TestCase):
             self.assertEqual(comparacao["diferenca_relativa"], 0)
             self.assertTrue(comparacao["mesmo_mapa"])
 
-    def test_comando_python_o3(self):
-        gem5 = self.pasta / "gem5.opt"
-        m5ops = self.pasta / "libm5ops.so"
-        gem5.touch()
-        m5ops.touch()
-        fluxo = Fluxo(
-            self.pasta / "saida", gem5, self.pasta, 3, 2, 0,
-            m5ops=m5ops, python=gem5, helper=gem5,
-        )
-
-        def simula(cmd, *, stdout, **kwargs):
-            self.assertIn("--cpu-type=X86O3CPU", cmd)
-            self.assertIn(f"--p12-helper={gem5}", cmd)
-            opcoes = next(a for a in cmd if a.startswith("--options="))
-            carga = shlex.split(opcoes.partition("=")[2])
-            self.assertEqual(carga[3:5], ["dois_grupos", "3"])
-            self.assertEqual(carga[-2:], ["--m5ops", str(m5ops)])
-            grava_execucao(Path(cmd[2]))
-            stdout.write(log_valido())
-            return type("Resultado", (), {"returncode": 0})()
-
-        with patch("fluxo_p12.subprocess.run", side_effect=simula) as run:
-            fluxo.perfil("grupos", 8, 1)
-            fluxo.perfil("grupos", 8, 1)
-            self.assertEqual(run.call_count, 1)
-            m5ops.write_text("biblioteca alterada")
-            fluxo.perfil("grupos", 8, 1)
-            self.assertEqual(run.call_count, 2)
-        self.assertEqual(len(politicas(16, python=True)), 7)
-
     def test_tamanho_campanha(self):
         self.assertEqual(len(PROGRAMAS) * len(MALHAS), 6)
         total = sum(len(politicas(n)) for n in MALHAS)
@@ -244,53 +206,8 @@ class TesteFluxo(unittest.TestCase):
         arq.seek(0)
         dados = {r["politica"]: r for r in agrega(arq)}
         self.assertEqual(dados["guloso"]["tempo"], 0.5)
-        self.assertEqual(dados["guloso"]["erro_tempo"], (0, 0))
+        self.assertEqual(dados["guloso"]["erro_padrao"], 0)
         self.assertEqual(dados["guloso"]["reducao_tempo"], 50)
-
-    def test_carga_python_falha_sem_prender_barreira(self):
-        raiz = Path(__file__).resolve().parents[3]
-        carga = raiz / "workloads/p12"
-        programa = """
-import sys
-from types import SimpleNamespace
-from unittest.mock import Mock, patch
-sys.path.insert(0, sys.argv[1])
-import comunicacao
-lib = Mock()
-lib.cpu_atual.side_effect = OSError("teste")
-args = SimpleNamespace(
-    threads=8, fases=1, linhas_msg=1, m5ops="teste",
-    semente=1, padrao="vizinhanca",
-)
-with patch.object(comunicacao, "carrega_m5ops", return_value=lib):
-    comunicacao.executar(args)
-"""
-        resultado = subprocess.run(
-            ["python3", "-B", "-c", programa, str(carga)],
-            timeout=5, capture_output=True, text=True,
-        )
-        self.assertNotEqual(resultado.returncode, 0)
-        self.assertIn("getcpu falhou", resultado.stderr)
-
-    def test_analise_python_cinco_mapas(self):
-        arq = StringIO()
-        writer = csv.writer(arq)
-        writer.writerow(
-            "programa,nucleos,carga,unidade_mapa,politica,semente_mapa,"
-            "semente_perturbacao,simTicks,average_hops,distancia_prevista,"
-            "distancia_medida,latencia_rede_ciclos".split(",")
-        )
-        tempos = [200, 180, 100, 120, 140, 160, 180]
-        for (p, m), ticks in zip(politicas(16, python=True), tempos):
-            writer.writerow(
-                ["grupos", 16, "python", "flits", p, m, 1, ticks, 2, 2, 2, 5]
-            )
-        arq.seek(0)
-        dados = {r["politica"]: r for r in agrega(arq)}
-        self.assertAlmostEqual(dados["aleatorio"]["tempo"], 0.7)
-        minimo, maximo = dados["aleatorio"]["erro_tempo"]
-        self.assertAlmostEqual(minimo, 0.2)
-        self.assertAlmostEqual(maximo, 0.2)
 
     def test_transposicao_sintetica(self):
         nos = self.pasta / "p12_nos.csv"

@@ -26,11 +26,11 @@
 
 """Channeled "generic" DDR memory controllers"""
 
-from collections.abc import Sequence
 from math import log
 from typing import (
     List,
     Optional,
+    Sequence,
     Tuple,
     Type,
     Union,
@@ -44,7 +44,6 @@ from m5.objects import (
 from m5.params import (
     AddrRange,
     Port,
-    SparseMaskedAddrRange,
 )
 from m5.util.convert import toMemorySize
 
@@ -72,21 +71,16 @@ class ChanneledMemory(AbstractMemorySystem):
     """A class to implement multi-channel memory system
 
     This class can take a DRAM Interface as a parameter to model a multi
-    channel DDR DRAM memory system. It is assumed that the memory is
-    interleaved using the least significant bits above the interleaving size.
-    Supports both dense and sparse (e.g., with holes) address ranges.
-
-    If you want to use other bits for interleaving or use modulo interleaving,
-    you can override the ``_interleave_addresses`` method of this class.
+    channel DDR DRAM memory system.
     """
 
     def __init__(
         self,
-        dram_interface_class: type[DRAMInterface],
-        num_channels: int | str,
-        interleaving_size: int | str,
-        size: str | None = None,
-        addr_mapping: str | None = None,
+        dram_interface_class: Type[DRAMInterface],
+        num_channels: Union[int, str],
+        interleaving_size: Union[int, str],
+        size: Optional[str] = None,
+        addr_mapping: Optional[str] = None,
     ) -> None:
         """
         :param dram_interface_class: The DRAM interface type to create with
@@ -130,8 +124,6 @@ class ChanneledMemory(AbstractMemorySystem):
         else:
             self._size = self._get_dram_size(num_channels, self._dram_class)
 
-        self._mem_ranges = []
-
         self._create_mem_interfaces_controller()
 
     def _create_mem_interfaces_controller(self):
@@ -157,33 +149,25 @@ class ChanneledMemory(AbstractMemorySystem):
                 self._dram_class.device_rowbuffer_size.value
                 * self._dram_class.devices_per_rank.value
             )
-            intlv_low_bit = int(log(rowbuffer_size, 2))
+            intlv_low_bit = log(rowbuffer_size, 2)
         elif self._addr_mapping in ["RoRaBaCoCh", "RoCoRaBaCh"]:
-            intlv_low_bit = int(log(self._intlv_size, 2))
+            intlv_low_bit = log(self._intlv_size, 2)
         else:
             raise ValueError(
                 "Only these address mappings are supported: "
                 "RoRaBaChCo, RoRaBaCoCh, RoCoRaBaCh"
             )
 
-        intlv_bits = int(log(self._num_channels, 2))
-        masks = []
-        for i in range(intlv_bits):
-            masks.append(1 << (intlv_low_bit + i))
+        intlv_bits = log(self._num_channels, 2)
         for i, ctrl in enumerate(self.mem_ctrl):
-            if len(self._mem_ranges) == 1:
-                ctrl.dram.range = AddrRange(
-                    start=self._mem_ranges[0].start,
-                    size=self._mem_ranges[0].size(),
-                    masks=masks,
-                    intlvMatch=i,
-                )
-            else:
-                ctrl.dram.range = SparseMaskedAddrRange(
-                    self._mem_ranges,
-                    masks=masks,
-                    intlvMatch=i,
-                )
+            ctrl.dram.range = AddrRange(
+                start=self._mem_range.start,
+                size=self._mem_range.size(),
+                intlvHighBit=intlv_low_bit + intlv_bits - 1,
+                xorHighBit=0,
+                intlvBits=intlv_bits,
+                intlvMatch=i,
+            )
 
     @overrides(AbstractMemorySystem)
     def incorporate_memory(self, board: AbstractBoard) -> None:
@@ -196,15 +180,15 @@ class ChanneledMemory(AbstractMemorySystem):
             )
 
     @overrides(AbstractMemorySystem)
-    def get_mem_ports(self) -> Sequence[tuple[AddrRange, Port]]:
+    def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         return [(ctrl.dram.range, ctrl.port) for ctrl in self.mem_ctrl]
 
     @overrides(AbstractMemorySystem)
-    def get_memory_controllers(self) -> list[MemCtrl]:
+    def get_memory_controllers(self) -> List[MemCtrl]:
         return [ctrl for ctrl in self.mem_ctrl]
 
     @overrides(AbstractMemorySystem)
-    def get_mem_interfaces(self) -> list[AbstractMemory]:
+    def get_mem_interfaces(self) -> List[AbstractMemory]:
         return self._dram
 
     @overrides(AbstractMemorySystem)
@@ -212,31 +196,20 @@ class ChanneledMemory(AbstractMemorySystem):
         return self._size
 
     @overrides(AbstractMemorySystem)
-    def set_memory_range(self, ranges: list[AddrRange]) -> None:
-        """Set the range for the memory to respond to. This range must be
-        the same size as the memory's parameter. If multiple ranges are
-        specified, they must be non-overlapping and non-contiguous and a
-        sparse interleaving will be used. The sum of the size of all ranges
-        must equal the memory size.
+    def set_memory_range(self, ranges: List[AddrRange]) -> None:
+        """Need to add support for non-contiguous non overlapping ranges in
+        the future.
         """
-        if sum([r.size() for r in ranges]) != self._size:
-            raise ValueError(
-                "Memory ranges do not match the memory size.\nMemory size: "
-                f"{self._size}\nMemory ranges: {ranges}"
+        if len(ranges) != 1 or ranges[0].size() != self._size:
+            raise Exception(
+                "Multi channel memory controller requires a single range "
+                "which matches the memory's size.\n"
+                f"The range size: {ranges[0].size()}\n"
+                f"This memory's size: {self._size}"
             )
-
-        sorted_ranges = sorted(ranges, key=lambda r: r.start)
-        for i in range(len(sorted_ranges) - 1):
-            if sorted_ranges[i].start + sorted_ranges[i].size() >= int(
-                sorted_ranges[i + 1].start
-            ):
-                raise ValueError(
-                    "Memory ranges must be non-overlapping and non-contiguous."
-                )
-
-        self._mem_ranges = ranges
+        self._mem_range = ranges[0]
         self._interleave_addresses()
 
     @overrides(AbstractMemorySystem)
-    def get_uninterleaved_range(self) -> list[AddrRange]:
-        return self._mem_ranges
+    def get_uninterleaved_range(self) -> List[AddrRange]:
+        return [self._mem_range]

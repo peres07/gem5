@@ -29,14 +29,21 @@
 #ifndef __MEM_DRAMSYS_WRAPPER_HH__
 #define __MEM_DRAMSYS_WRAPPER_HH__
 
-#include "DRAMSys/DRAMSys.h"
-#include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
-#include "params/DRAMSys.hh"
-
-#include <tlm_utils/simple_initiator_socket.h>
-#include <tlm_utils/simple_target_socket.h>
-
+#include <iostream>
 #include <memory>
+
+#include "DRAMSys/config/DRAMSysConfiguration.h"
+#include "DRAMSys/simulation/DRAMSys.h"
+#include "mem/abstract_mem.hh"
+#include "params/DRAMSys.hh"
+#include "sim/core.hh"
+#include "systemc/core/kernel.hh"
+#include "systemc/ext/core/sc_module_name.hh"
+
+#include "systemc/ext/systemc"
+#include "systemc/ext/tlm"
+#include "systemc/ext/tlm_utils/simple_target_socket.h"
+#include "systemc/tlm_port_wrapper.hh"
 
 namespace gem5
 {
@@ -49,6 +56,7 @@ class DRAMSysWrapper : public sc_core::sc_module
     friend class DRAMSys;
 
   public:
+    SC_HAS_PROCESS(DRAMSysWrapper);
     DRAMSysWrapper(sc_core::sc_module_name name,
                    ::DRAMSys::Config::Configuration const &config,
                    AddrRange range);
@@ -70,7 +78,7 @@ class DRAMSysWrapper : public sc_core::sc_module
     tlm_utils::simple_initiator_socket<DRAMSysWrapper> iSocket;
     tlm_utils::simple_target_socket<DRAMSysWrapper> tSocket;
 
-    std::unique_ptr<::DRAMSys::DRAMSys> dramsys;
+    std::shared_ptr<::DRAMSys::DRAMSys> dramsys;
 
     AddrRange range;
 };

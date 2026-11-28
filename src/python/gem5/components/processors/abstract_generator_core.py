@@ -94,8 +94,8 @@ class AbstractGeneratorCore(AbstractCore):
     @overrides(AbstractCore)
     def connect_interrupt(
         self,
-        interrupt_requestor: Port | None = None,
-        interrupt_responce: Port | None = None,
+        interrupt_requestor: Optional[Port] = None,
+        interrupt_responce: Optional[Port] = None,
     ) -> None:
         """
         Since generator cores are not used in full system mode, no need to

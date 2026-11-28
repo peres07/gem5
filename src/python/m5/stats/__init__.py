@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2020, 2025 Arm Limited
+# Copyright (c) 2017-2020 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -52,10 +52,7 @@ from _m5 import stats as _m5_stats
 from _m5.stats import periodicStatDump
 from _m5.stats import schedStatEvent as schedEvent
 
-from .gem5stats import (
-    CsvOutputVisitor,
-    JsonOutputVistor,
-)
+from .gem5stats import JsonOutputVistor
 
 outputList = []
 
@@ -192,11 +189,6 @@ def _hdf5Factory(fn, chunking=10, desc=True, formulas=True):
     """
 
     return _m5_stats.initHDF5(fn, chunking, desc, formulas)
-
-
-@_url_factory(["csv"])
-def _csvFactory(fn):
-    return CsvOutputVisitor(fn)
 
 
 @_url_factory(["json"])
@@ -432,7 +424,7 @@ def dump(roots=None, message=""):
         prepare()
 
     for output in outputList:
-        if isinstance(output, (JsonOutputVistor, CsvOutputVisitor)):
+        if isinstance(output, JsonOutputVistor):
             if not all_roots:
                 output.dump(Root.getInstance())
             else:

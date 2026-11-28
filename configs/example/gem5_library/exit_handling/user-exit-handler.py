@@ -66,9 +66,7 @@ args = parser.parse_args()
 # Create the system
 cache_hierarchy = NoCache()
 memory = SingleChannelDDR3_1600(size="512MB")
-processor = SimpleProcessor(
-    cpu_type=CPUTypes.ATOMIC, isa=ISA.X86, num_cores=1, clk_freq="1GHz"
-)
+processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.X86, num_cores=1)
 
 # Create the board
 board = SimpleBoard(
@@ -85,7 +83,7 @@ board.set_se_binary_workload(
 
 
 # The exit handler which will be used to take checkpoints when the scheduled
-# exit event is triggered (SCHEDULED_EXIT hypercall (ID 6)).
+# exit event is triggered (hypercall ID 6).
 class MyExitHandler(ScheduledExitEventHandler):
     def _process(self, simulator: "Simulator") -> None:
         super()._process(simulator)

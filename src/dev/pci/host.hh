@@ -70,16 +70,11 @@ class Platform;
  * PciHost functionality is implemented by the GenericPciHost class. The actual
  * bridge is implemented by PciHostBridge which is a member of this class.
  */
-class PciHost : public ClockedObject, public PciUpstream
+class PciHost : public PciUpstream
 {
   public:
-    /* Remove name() ambiguity. */
-    using ClockedObject::name;
-
     PciHost(const PciHostParams &p);
     virtual ~PciHost();
-
-    void init() override;
 };
 
 /**
@@ -119,28 +114,25 @@ class GenericPciHost : public PciHost
     AddrRange getConfigAddrRange() const override;
 
   protected: // PciUpstream
-    AddrRange interfaceConfigRange(const PciDevice &device) const override;
+    AddrRange interfaceConfigRange(const PciDevAddr &dev_addr) const override;
 
     Addr
-    interfacePioAddr(const PciDevice &device, Addr pci_addr) const override
+    interfacePioAddr(const PciDevAddr &dev_addr, Addr pci_addr) const override
     {
         return pciPioBase + pci_addr;
     }
 
     Addr
-    interfaceMemAddr(const PciDevice &device, Addr pci_addr) const override
+    interfaceMemAddr(const PciDevAddr &dev_addr, Addr pci_addr) const override
     {
         return pciMemBase + pci_addr;
     }
 
     Addr
-    interfaceDmaAddr(const PciDevice &device, Addr pci_addr) const override
+    interfaceDmaAddr(const PciDevAddr &dev_addr, Addr pci_addr) const override
     {
         return pciDmaBase + pci_addr;
     }
-
-    AddrRange interfaceBusConfigRange(PciBusNum start_bus,
-                                      PciBusNum end_bus) const override;
 
     PciBusNum
     getBusNum() const override
@@ -149,14 +141,13 @@ class GenericPciHost : public PciHost
     }
 
   protected: // Interrupt handling
-    void interfacePostInt(const PciDevice &device) override;
-    void interfaceClearInt(const PciDevice &device) override;
+    void interfacePostInt(const PciDevAddr &addr, PciIntPin pin) override;
+    void interfaceClearInt(const PciDevAddr &addr, PciIntPin pin) override;
 
-    virtual uint32_t mapPciInterrupt(const PciDevice &device) const;
+    virtual uint32_t mapPciInterrupt(const PciDevAddr &dev_addr,
+                                     PciIntPin pin) const;
 
   protected:
-    Addr devConfigAddr(PciBusNum bus_num, const PciDevAddr &dev_addr) const;
-
     Platform &platform;
 
     const Addr confBase;
@@ -166,10 +157,6 @@ class GenericPciHost : public PciHost
     const Addr pciPioBase;
     const Addr pciMemBase;
     const Addr pciDmaBase;
-
-    constexpr static uint64_t FUNCTION_OFFSET = 0;
-    constexpr static uint64_t DEVICE_OFFSET = 3;
-    constexpr static uint64_t BUS_OFFSET = 8;
 };
 
 } // namespace gem5

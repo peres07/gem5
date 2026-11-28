@@ -1,6 +1,3 @@
-# Copyright (c) 2026 The Project 12 contributors
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Mesh_XY com posicoes configuraveis para controladores L1."""
 
 import json

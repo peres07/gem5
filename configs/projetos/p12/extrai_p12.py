@@ -95,11 +95,6 @@ def extrai(pasta, linhas, colunas, mapa_json=None, limite=TRANSITO_PADRAO):
         raise ValueError("dimensoes ou limite de transito invalidos")
     checksum = confere_log(pasta, linhas * colunas)
     stats = le_bloco(pasta)
-    # gem5 tambem despeja estatisticas ao encerrar a simulacao.
-    try:
-        le_bloco(pasta, 1)
-    except ValueError as erro:
-        raise ValueError("falta o dump da ROI ou o dump final") from erro
     perfis = {u: le_perfil(pasta, u) for u in ("msgs", "flits")}
     totais = confere_conservacao(stats, perfis)
 

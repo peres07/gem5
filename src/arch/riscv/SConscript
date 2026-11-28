@@ -96,7 +96,7 @@ SimObject(
 SimObject(
     'RiscvISA.py',
     sim_objects=['RiscvISA'],
-    enums=['RiscvType', 'PrivilegeModeSet', 'RiscvProfile'],
+    enums=['RiscvType', 'PrivilegeModeSet'],
     tags=['riscv isa']
 )
 SimObject(

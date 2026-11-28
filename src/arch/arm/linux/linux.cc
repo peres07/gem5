@@ -57,8 +57,7 @@ ArmLinux64::archSigreturn(ThreadContext *ctc)
     auto pc_state = ctc->pcState().as<ArmISA::PCState>();
     pc_state.set(new_pc);
     ctc->pcState(pc_state);
-    ctc->setMiscReg(ArmISA::MISCREG_CPSR, _newpsr);
-    ctc->setMiscReg(ArmISA::MISCREG_NZCV, _newpsr);
+    ctc->setMiscRegNoEffect(ArmISA::MISCREG_CPSR, _newpsr);
     // Update the stack pointer. This should be done after
     // updating CPSR/PSTATE since that might affect how SPX gets
     // mapped.

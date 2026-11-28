@@ -53,9 +53,7 @@ def ignore_style():
 
 
 def get_termcap():
-    return m5.util.terminal.get_termcap(
-        use_colors=SCons.Script.GetOption("use_colors")
-    )
+    return m5.util.terminal.get_termcap(SCons.Script.GetOption("use_colors"))
 
 
 def readCommand(cmd, **kwargs):

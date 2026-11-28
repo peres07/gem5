@@ -43,7 +43,6 @@
 Tests which run simple binaries in gem5's SE mode. The stdlib's SimpleBoard
 is used to run these tests.
 """
-
 import re
 
 from testlib import *

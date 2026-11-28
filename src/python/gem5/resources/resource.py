@@ -27,21 +27,18 @@
 import inspect
 import os
 from abc import ABCMeta
-from collections.abc import Generator
 from functools import partial
 from pathlib import Path
-from types import UnionType
 from typing import (
     Any,
     Dict,
+    Generator,
     List,
     Optional,
     Set,
     Tuple,
     Type,
     Union,
-    get_args,
-    get_origin,
 )
 
 from m5.util import (
@@ -100,12 +97,12 @@ class AbstractResource:
 
     def __init__(
         self,
-        id: str | None = None,
-        resource_version: str | None = None,
-        local_path: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        local_path: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
     ):
         """
         :param local_path: The path on the host system where this resource is
@@ -149,7 +146,7 @@ class AbstractResource:
         """Returns the version of the resource."""
         return self._version
 
-    def get_local_path(self) -> str | None:
+    def get_local_path(self) -> Optional[str]:
         """Returns the local path of the resource.
 
         If specified the `downloader` partial function is called to download
@@ -165,11 +162,11 @@ class AbstractResource:
             )
         return self._local_path
 
-    def get_description(self) -> str | None:
+    def get_description(self) -> Optional[str]:
         """Returns description associated with this resource."""
         return self._description
 
-    def get_source(self) -> str | None:
+    def get_source(self) -> Optional[str]:
         """Returns information as to where the source for this resource may be
         found.
         """
@@ -182,11 +179,11 @@ class FileResource(AbstractResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         super().__init__(
@@ -201,7 +198,7 @@ class FileResource(AbstractResource):
     def get_category_name(cls) -> str:
         return "FileResource"
 
-    def get_local_path(self) -> str | None:
+    def get_local_path(self) -> Optional[str]:
         # Here we override get_local_path to ensure the file exists.
         file_path = super().get_local_path()
 
@@ -221,11 +218,11 @@ class DirectoryResource(AbstractResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         super().__init__(
@@ -240,7 +237,7 @@ class DirectoryResource(AbstractResource):
     def get_category_name(cls) -> str:
         return "DirectoryResource"
 
-    def get_local_path(self) -> str | None:
+    def get_local_path(self) -> Optional[str]:
         # Here we override get_local_path to ensure the directory exists.
         dir_path = super().get_local_path()
 
@@ -261,12 +258,12 @@ class DiskImageResource(FileResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
-        root_partition: str | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
+        root_partition: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(
@@ -279,7 +276,7 @@ class DiskImageResource(FileResource):
         )
         self._root_partition = root_partition
 
-    def get_root_partition(self) -> str | None:
+    def get_root_partition(self) -> Optional[str]:
         """Returns, if applicable, the Root Partition of the disk image."""
         return self._root_partition
 
@@ -293,12 +290,12 @@ class BinaryResource(FileResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
-        architecture: ISA | str | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
+        architecture: Optional[Union[ISA, str]] = None,
         **kwargs,
     ):
         super().__init__(
@@ -320,7 +317,7 @@ class BinaryResource(FileResource):
     def get_category_name(cls) -> str:
         return "BinaryResource"
 
-    def get_architecture(self) -> ISA | None:
+    def get_architecture(self) -> Optional[ISA]:
         """Returns the ISA this binary is compiled to."""
         return self._architecture
 
@@ -331,12 +328,12 @@ class BootloaderResource(BinaryResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
-        architecture: ISA | str | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
+        architecture: Optional[Union[ISA, str]] = None,
         **kwargs,
     ):
         super().__init__(
@@ -359,11 +356,11 @@ class GitResource(DirectoryResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         super().__init__(
@@ -385,12 +382,12 @@ class KernelResource(BinaryResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
-        architecture: ISA | str | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
+        architecture: Optional[Union[ISA, str]] = None,
         **kwargs,
     ):
         super().__init__(
@@ -418,11 +415,11 @@ class CheckpointResource(DirectoryResource):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         super().__init__(
@@ -447,17 +444,17 @@ class SimpointResource(AbstractResource):
 
     def __init__(
         self,
-        resource_version: str | None = None,
+        resource_version: Optional[str] = None,
         simpoint_interval: int = None,
-        simpoint_list: list[int] = None,
-        weight_list: list[float] = None,
+        simpoint_list: List[int] = None,
+        weight_list: List[float] = None,
         warmup_interval: int = 0,
-        id: str | None = None,
-        workload_name: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
-        local_path: str | None = None,
+        id: Optional[str] = None,
+        workload_name: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
+        local_path: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -508,14 +505,14 @@ class SimpointResource(AbstractResource):
         else:
             self._warmup_list = [0] * len(self.get_simpoint_start_insts)
 
-    def get_simpoint_list(self) -> list[int]:
+    def get_simpoint_list(self) -> List[int]:
         """Returns the a list containing all the SimPoints for the workload."""
         if self._simpoint_list is None:
             self._load_simpoints()
         assert self._simpoint_list is not None, "SimPoint list is None"
         return self._simpoint_list
 
-    def get_simpoint_start_insts(self) -> list[int]:
+    def get_simpoint_start_insts(self) -> List[int]:
         """Returns a lst containing all the SimPoint starting instrunction
         points for the workload. This was calculated by multiplying the
         SimPoint with the SimPoint interval when it was generated."""
@@ -533,7 +530,7 @@ class SimpointResource(AbstractResource):
         assert self._warmup_interval is not None, "Warmup interval is None"
         return self._warmup_interval
 
-    def get_weight_list(self) -> list[float]:
+    def get_weight_list(self) -> List[float]:
         """Returns the list that contains the weight for each SimPoint. The
         order of the weights matches that of the list returned by
         ``get_simpoint_list()``. I.e. ``get_weight_list()[3]`` is the weight for
@@ -547,7 +544,7 @@ class SimpointResource(AbstractResource):
         """Returns the SimPoint interval value."""
         return self._simpoint_interval
 
-    def get_warmup_list(self) -> list[int]:
+    def get_warmup_list(self) -> List[int]:
         """Returns the a list containing the warmup length for each SimPoint.
         Each warmup length in this list corresponds to the SimPoint at the same
         index in ``get_simpoint_list()``. I.e., ``get_warmup_list()[4]`` is the
@@ -557,11 +554,11 @@ class SimpointResource(AbstractResource):
         assert self._warmup_list is not None, "Warmup list is None"
         return self._warmup_list
 
-    def get_workload_name(self) -> str | None:
+    def get_workload_name(self) -> Optional[str]:
         """Return the workload name this SimPoint is associated with."""
         return self._workload_name
 
-    def _set_warmup_list(self) -> list[int]:
+    def _set_warmup_list(self) -> List[int]:
         """
         This function uses the ``warmup_interval``, fits it into the
         ``simpoint_start_insts``, and outputs a list of warmup instruction lengths
@@ -597,11 +594,11 @@ class LooppointCsvResource(FileResource, LooppointCsvLoader):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         FileResource.__init__(
@@ -625,12 +622,12 @@ class LooppointJsonResource(FileResource, LooppointJsonLoader):
     def __init__(
         self,
         local_path: str,
-        id: str | None = None,
-        resource_version: str | None = None,
-        region_id: str | int | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        region_id: Optional[Union[str, int]] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         FileResource.__init__(
@@ -661,12 +658,12 @@ class SimpointDirectoryResource(SimpointResource):
         weight_file: str,
         simpoint_interval: int,
         warmup_interval: int,
-        id: str | None = None,
-        resource_version: str | None = None,
-        workload_name: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        downloader: partial | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        workload_name: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        downloader: Optional[partial] = None,
         **kwargs,
     ):
         """
@@ -710,15 +707,14 @@ class SimpointDirectoryResource(SimpointResource):
 
     def _get_weights_and_simpoints_from_file(
         self,
-    ) -> tuple[list[int], list[int]]:
+    ) -> Tuple[List[int], List[int]]:
         """This is a helper function to extract the weights and SimPoints from
         the files.
         """
         simpoint_weight_pair = []
-        with (
-            open(self.get_simpoint_file()) as simpoint_file,
-            open(self.get_weight_file()) as weight_file,
-        ):
+        with open(self.get_simpoint_file()) as simpoint_file, open(
+            self.get_weight_file()
+        ) as weight_file:
             while True:
                 line = simpoint_file.readline()
                 if not line:
@@ -755,11 +751,11 @@ class SuiteResource(AbstractResource):
 
     def __init__(
         self,
-        workloads: dict["WorkloadResource", set[str]] | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        id: str | None = None,
+        workloads: Dict["WorkloadResource", Set[str]] = {},
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        id: Optional[str] = None,
         **kwargs,
     ) -> None:
         """
@@ -776,7 +772,7 @@ class SuiteResource(AbstractResource):
                        is ``None``.
         :param resource_version: Version of the resource itself.
         """
-        self._workloads = {} if workloads is None else workloads
+        self._workloads = workloads
         self._description = description
         self._source = source
         self._resource_version = resource_version
@@ -834,7 +830,7 @@ class SuiteResource(AbstractResource):
             workloads=filtered_workloads,
         )
 
-    def get_input_groups(self) -> set[str]:
+    def get_input_groups(self) -> Set[str]:
         """
         :returns: A set of all input groups used by the workloads in a suite.
         """
@@ -854,12 +850,12 @@ class WorkloadResource(AbstractResource):
     def __init__(
         self,
         function: str = None,
-        id: str | None = None,
-        resource_version: str | None = None,
-        description: str | None = None,
-        source: str | None = None,
-        local_path: str | None = None,
-        parameters: dict | None = None,
+        id: Optional[str] = None,
+        resource_version: Optional[str] = None,
+        description: Optional[str] = None,
+        source: Optional[str] = None,
+        local_path: Optional[str] = None,
+        parameters: Optional[dict] = {},
         **kwargs,
     ):
         """
@@ -877,7 +873,7 @@ class WorkloadResource(AbstractResource):
 
         self._id = id
         self._func = function
-        self._params = {} if parameters is None else parameters
+        self._params = parameters
 
     def get_id(self) -> str:
         """Returns the ID of the workload."""
@@ -893,7 +889,7 @@ class WorkloadResource(AbstractResource):
         """
         return self._func
 
-    def get_parameters(self) -> dict[str, Any]:
+    def get_parameters(self) -> Dict[str, Any]:
         """
         Returns a dictionary mapping the workload parameters to their values.
 
@@ -917,16 +913,13 @@ class WorkloadResource(AbstractResource):
 
 def obtain_resource(
     resource_id: str,
-    resource_directory: str | None = None,
+    resource_directory: Optional[str] = None,
     download_md5_mismatch: bool = True,
-    resource_version: str | None = None,
-    clients: list | None = None,
+    resource_version: Optional[str] = None,
+    clients: Optional[List] = None,
     gem5_version=core.gem5Version,
-    to_path: str | None = None,
+    to_path: Optional[str] = None,
     quiet: bool = False,
-    sparse: bool = True,
-    skip_cache_hash_check: bool = False,
-    lock_timeout: float = 900,
 ) -> AbstractResource:
     """
     This function primarily serves as a factory for resources. It will return
@@ -956,24 +949,10 @@ def obtain_resource(
                          version. If `None`, this filtering is not performed.
     :param to_path: The path to which the resource is to be downloaded. If
                     ``None``, the resource will be downloaded to the resource directory
-                    with the file/directory name ``<id>-<resource_version>``.
+                    with the file/directory name equal to the ID of the resource.
                     **Note**: Usage of this parameter will override the
                     ``resource_directory`` parameter.
     :param quiet: If ``True``, suppress output. ``False`` by default.
-    :param sparse: If ``True``, request a sparse local representation of a
-                   disk image resource. If ``False``, disable sparse
-                   downloading. ``True`` by default.
-    :param skip_cache_hash_check: If ``True``, reuse an existing cache path
-                   without verifying its contents, and emit a warning even
-                   when ``quiet`` is set. ``False`` by default. The default
-                   cache name includes the resource ID and version; with
-                   ``to_path``, the caller is responsible for the mapping.
-                   Cached disk images retain their current sparse/dense
-                   representation. Missing resources follow the normal
-                   download path. Applies to workload and suite resources too.
-    :param lock_timeout: Maximum seconds to wait for another process to finish
-                   using a resource lock. Defaults to 900 (15 minutes). Must
-                   be finite and non-negative; zero attempts acquisition once.
     """
 
     # Some basic validation. Resource_id must be of type string and not empty.
@@ -986,12 +965,6 @@ def obtain_resource(
         raise ValueError(
             "Resource ID cannot be an empty or whitespace-only string."
         )
-
-    if not isinstance(sparse, bool):
-        raise TypeError(f"sparse must be a bool, got {type(sparse).__name__}.")
-
-    if not isinstance(skip_cache_hash_check, bool):
-        raise TypeError("skip_cache_hash_check must be a bool.")
 
     # Obtain the resource object entry for this resource
     resource_json = get_resource_json_obj(
@@ -1011,9 +984,6 @@ def obtain_resource(
         clients=clients,
         gem5_version=gem5_version,
         quiet=quiet,
-        sparse=sparse,
-        skip_cache_hash_check=skip_cache_hash_check,
-        lock_timeout=lock_timeout,
     )
 
     # The 'workload' and 'suite' are special and need some translating into
@@ -1027,9 +997,6 @@ def obtain_resource(
             clients,
             gem5_version,
             quiet,
-            sparse=sparse,
-            skip_cache_hash_check=skip_cache_hash_check,
-            lock_timeout=lock_timeout,
         )
 
     if resource_json.get("category") == "workload":
@@ -1041,9 +1008,6 @@ def obtain_resource(
             clients,
             gem5_version,
             quiet,
-            sparse=sparse,
-            skip_cache_hash_check=skip_cache_hash_check,
-            lock_timeout=lock_timeout,
         )
 
     # Check the schema of the 'resource_json' object.
@@ -1078,7 +1042,7 @@ def obtain_resource(
     )
 
 
-def _resources_schema_validator(resource_json: dict[str, Any]) -> None:
+def _resources_schema_validator(resource_json: Dict[str, Any]) -> None:
     """
     This function is used to validate the schema of the resource JSON object
     before creating the resource object. This is to ensure that the resource
@@ -1141,9 +1105,10 @@ def _resources_schema_validator(resource_json: dict[str, Any]) -> None:
             continue  # Skip type checking if no type annotation
 
         # Handle Union and Optional types
-        if get_origin(param_type) in (Union, UnionType):
-            # Get all possible types from the Union, excluding None for
-            # Optional.
+        if getattr(param_type, "__origin__", None) == Union:
+            # Get all possible types from the Union using get_args, excluding None for Optional
+            from typing import get_args
+
             valid_types = tuple(
                 t for t in get_args(param_type) if t != type(None)
             )
@@ -1154,10 +1119,14 @@ def _resources_schema_validator(resource_json: dict[str, Any]) -> None:
             if value is None and type(None) in get_args(param_type):
                 continue
             if not any(
-                isinstance(value, get_origin(t) or t) for t in valid_types
+                isinstance(value, t)
+                for t in valid_types
+                if not hasattr(t, "__origin__")
             ):
                 type_names = " or ".join(
-                    (get_origin(t) or t).__name__ for t in valid_types
+                    t.__name__
+                    for t in valid_types
+                    if not hasattr(t, "__origin__")
                 )
                 raise Exception(
                     f"Resource {resource_json['id']} version {resource_json['resource_version']} "
@@ -1181,17 +1150,14 @@ def _resources_schema_validator(resource_json: dict[str, Any]) -> None:
 
 
 def _get_suite(
-    suite: dict[str, Any],
+    suite: Dict[str, Any],
     local_path: str,
     resource_directory: str,
     download_md5_mismatch: bool,
-    clients: list[str],
+    clients: List[str],
     gem5_version: str,
     quiet: bool,
-    sparse: bool = True,
-    skip_cache_hash_check: bool = False,
-    lock_timeout: float = 900,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     :param suite: The suite JSON object.
     :param local_path: The local path of the suite.
@@ -1206,9 +1172,6 @@ def _get_suite(
                          resource versions. By default set to the current gem5
                          version.
     :param quiet: If ``True``, suppress output. ``False`` by default.
-    :param sparse: Whether nested disk images should be materialized sparsely.
-    :param skip_cache_hash_check: Whether to trust cached nested resources.
-    :param lock_timeout: Maximum seconds to wait for each resource lock.
     """
     # Mapping input groups to workload IDs
     id_input_group_dict = {}
@@ -1252,9 +1215,6 @@ def _get_suite(
             clients,
             gem5_version,
             quiet,
-            sparse=sparse,
-            skip_cache_hash_check=skip_cache_hash_check,
-            lock_timeout=lock_timeout,
         )
         _resources_schema_validator(workload_dict)
         workload_input_group_dict[
@@ -1269,17 +1229,14 @@ def _get_suite(
 
 
 def _get_workload(
-    workload: dict[str, Any],
+    workload: Dict[str, Any],
     local_path: str,
     resource_directory: str,
     download_md5_mismatch: bool,
-    clients: list[str],
+    clients: List[str],
     gem5_version: str,
     quiet: bool,
-    sparse: bool = True,
-    skip_cache_hash_check: bool = False,
-    lock_timeout: float = 900,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     :param workload: The workload JSON object.
     :param local_path: The local path of the workload.
@@ -1294,9 +1251,6 @@ def _get_workload(
                          resource versions. By default set to the current gem5
                          version.
     :param quiet: If ``True``, suppress output. ``False`` by default.
-    :param sparse: Whether nested disk images should be materialized sparsely.
-    :param skip_cache_hash_check: Whether to trust cached nested resources.
-    :param lock_timeout: Maximum seconds to wait for each resource lock.
     """
 
     db_query = []
@@ -1347,8 +1301,8 @@ def _get_workload(
     resource_details_list = get_multiple_resource_json_obj(db_query, clients)
 
     def create_resource_object(
-        param_resource: dict[str, str],
-        resource_details_list: list[dict[str, str]],
+        param_resource: Dict[str, str],
+        resource_details_list: List[Dict[str, str]],
     ) -> AbstractResource:
         resource_match = None
         for resource in resource_details_list:
@@ -1372,9 +1326,6 @@ def _get_workload(
             clients=clients,
             gem5_version=gem5_version,
             quiet=quiet,
-            sparse=sparse,
-            skip_cache_hash_check=skip_cache_hash_check,
-            lock_timeout=lock_timeout,
         )
 
         _resources_schema_validator(resource_match)
@@ -1437,17 +1388,14 @@ def _get_workload(
 
 
 def _get_to_path_and_downloader_partial(
-    resource_json: dict[str, str],
+    resource_json: Dict[str, str],
     to_path: str,
     resource_directory: str,
     download_md5_mismatch: bool,
-    clients: list[str],
+    clients: List[str],
     gem5_version: str,
     quiet: bool,
-    sparse: bool = True,
-    skip_cache_hash_check: bool = False,
-    lock_timeout: float = 900,
-) -> tuple[str, partial | None]:
+) -> Tuple[str, Optional[partial]]:
 
     if "resource_version" not in resource_json:
         raise Exception(
@@ -1463,7 +1411,7 @@ def _get_to_path_and_downloader_partial(
     resource_version = resource_json["resource_version"]
     # This is is used to store the partial function which is used to download
     # the resource when the `get_local_path` function is called.
-    downloader: partial | None = None
+    downloader: Optional[partial] = None
 
     # If the "url" field is specified, the resoruce must be downloaded.
     if "url" in resource_json and resource_json["url"]:
@@ -1525,9 +1473,6 @@ def _get_to_path_and_downloader_partial(
             clients=clients,
             gem5_version=gem5_version,
             quiet=quiet,
-            sparse=sparse,
-            skip_cache_hash_check=skip_cache_hash_check,
-            lock_timeout=lock_timeout,
         )
     return to_path, downloader
 
@@ -1577,14 +1522,12 @@ class CustomResource(AbstractResource):
         Please use the correct AbstractResource subclass instead.
     """
 
-    def __init__(self, local_path: str, metadata: dict | None = None):
+    def __init__(self, local_path: str, metadata: Dict = {}):
         """
         :param local_path: The path of the resource on the host system.
         :param metadata: Add metadata for the custom resource. **Warning:**
                          As of v22.1.1, this parameter is not used.
         """
-        metadata = {} if metadata is None else metadata
-
         warn(
             "The `CustomResource` class is deprecated. Please use an "
             "`AbstractResource` subclass instead."
@@ -1612,9 +1555,9 @@ class CustomDiskImageResource(DiskImageResource):
     def __init__(
         self,
         local_path: str,
-        resource_version: str | None = None,
-        root_partition: str | None = None,
-        metadata: dict | None = None,
+        resource_version: Optional[str] = None,
+        root_partition: Optional[str] = None,
+        metadata: Dict = {},
     ):
         """
         :param local_path: The path of the disk image on the host system.
@@ -1623,8 +1566,6 @@ class CustomDiskImageResource(DiskImageResource):
                          "v22.1.1, this parameter is not used.
         :param resource_version: Version of the resource itself.
         """
-        metadata = {} if metadata is None else metadata
-
         warn(
             "The `CustomDiskImageResource` class is deprecated. Please use "
             "`DiskImageResource` instead."
@@ -1644,10 +1585,10 @@ class CustomDiskImageResource(DiskImageResource):
 
 def Resource(
     resource_id: str,
-    resource_directory: str | None = None,
+    resource_directory: Optional[str] = None,
     download_md5_mismatch: bool = True,
-    resource_version: str | None = None,
-    clients: list[str] | None = None,
+    resource_version: Optional[str] = None,
+    clients: Optional[List[str]] = None,
 ) -> AbstractResource:
     """
     This function was created to maintain backwards compatibility for v21.1.0

@@ -56,18 +56,12 @@ namespace branch_prediction
 {
 
 BPredUnit::BPredUnit(const Params &params)
-    : SimObject(params),
-      numThreads(params.numThreads),
+    : SimObject(params), numThreads(params.numThreads),
       requiresBTBHit(params.requiresBTBHit),
       updateBTBAtSquash(params.updateBTBAtSquash),
-      instShiftAmt(params.instShiftAmt),
-      predHist(numThreads),
-      btb(params.btb),
-      ras(params.ras),
-      cPred(params.conditionalBranchPred),
-      overridingCPred(params.overridingBranchPred),
-      iPred(params.indirectBranchPred),
-      stats(this)
+      instShiftAmt(params.instShiftAmt), predHist(numThreads), btb(params.btb),
+      ras(params.ras), cPred(params.conditionalBranchPred),
+      iPred(params.indirectBranchPred), stats(this)
 {
 }
 
@@ -97,13 +91,14 @@ BPredUnit::drainSanityCheck() const
         assert(ph.empty());
 }
 
-Prediction
+
+bool
 BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                    PCStateBase &pc, ThreadID tid)
 {
     /** Perform the prediction. */
     PredictorHistory* bpu_history = nullptr;
-    Prediction pred = predict(inst, seqNum, pc, tid, bpu_history);
+    bool taken  = predict(inst, seqNum, pc, tid, bpu_history);
 
     assert(bpu_history!=nullptr);
 
@@ -113,7 +108,7 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
     DPRINTF(Branch, "[tid:%i] [sn:%llu] History entry added. "
             "predHist.size(): %i\n", tid, seqNum, predHist[tid].size());
 
-    return pred;
+    return taken;
 }
 
 void
@@ -122,13 +117,12 @@ BPredUnit::insertPredictorHistory(ThreadID tid, PredictorHistory *&bpu_history)
     predHist[tid].push_front(bpu_history);
 }
 
-Prediction
+bool
 BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
-                   PCStateBase &pc, ThreadID tid, PredictorHistory *&hist)
+                   PCStateBase &pc, ThreadID tid, PredictorHistory* &hist)
 {
     assert(hist == nullptr);
 
-    Cycles totalLatency = Cycles(0);
 
     // See if branch predictor predicts taken.
     // If so, get its target addr either from the BTB or the RAS.
@@ -156,29 +150,7 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
     } else {
         // Conditional branches -------
         ++stats.condPredicted;
-        Prediction condPred =
-            cPred->lookup(tid, pc.instAddr(), hist->bpHistory);
-        hist->condPred = condPred.taken;
-
-        if (overridingCPred) {
-
-            Prediction secondaryPred = overridingCPred->lookup(
-                tid, pc.instAddr(), hist->overridingBpHistory);
-            if (secondaryPred.taken != hist->condPred) {
-                // If the predictors disagree,
-                // use the result of the overriding predictor
-                // and incur its latency
-                totalLatency += secondaryPred.latency;
-                hist->condPred = secondaryPred.taken;
-                hist->overridden = true;
-            } else {
-                // If the predictors agree,
-                // use the result of the primary predictor
-                totalLatency += condPred.latency;
-            }
-        } else {
-            totalLatency += condPred.latency;
-        }
+        hist->condPred = cPred->lookup(tid, pc.instAddr(), hist->bpHistory);
 
         if (hist->condPred) {
             ++stats.condPredictedTaken;
@@ -205,11 +177,7 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
      * chance to detect a branch without a BTB hit.
      */
     stats.BTBLookups++;
-    BTBLookupResult btb_res = btb->lookup(tid, pc.instAddr(), brType);
-    const PCStateBase *btb_target = btb_res.target;
-    // The BTB and CBP are accessed in parallel. The total latency should be
-    // the maximum of the bpred latency and the BTB latency.
-    totalLatency = std::max(totalLatency, btb_res.latency);
+    const PCStateBase * btb_target = btb->lookup(tid, pc.instAddr(), brType);
     if (btb_target) {
         stats.BTBHits++;
         hist->btbHit = true;
@@ -288,8 +256,9 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
 
         ++stats.indirectLookups;
 
-        const PCStateBase *itarget =
-            iPred->lookup(tid, seqNum, pc.instAddr(), hist->indirectHistory);
+        std::unique_ptr<const PCStateBase> itarget(
+            iPred->lookup(tid, seqNum, pc.instAddr(),
+                          hist->indirectHistory));
 
         if (itarget) {
             // Indirect predictor hit
@@ -352,11 +321,6 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                            hist->target->instAddr(), hist->inst,
                            hist->bpHistory);
 
-    if (overridingCPred) {
-        overridingCPred->updateHistories(
-            tid, hist->pc, hist->uncond, hist->predTaken,
-            hist->target->instAddr(), hist->inst, hist->overridingBpHistory);
-    }
 
     if (iPred) {
         // Update the indirect predictor with the direction prediction
@@ -364,10 +328,7 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                       *hist->target, brType, hist->indirectHistory);
     }
 
-    return Prediction{
-        .taken = hist->predTaken,
-        .latency = totalLatency,
-    };
+    return hist->predTaken;
 }
 
 
@@ -418,20 +379,6 @@ BPredUnit::commitBranch(ThreadID tid, PredictorHistory* &hist)
     // Update the branch predictor with the correct results.
     cPred->update(tid, hist->pc, hist->actuallyTaken, hist->bpHistory, false,
                   hist->inst, hist->target->instAddr());
-
-    if (hist->inst->isCondCtrl()) {
-        updateStatsOverriding(hist->condPred, hist->actuallyTaken,
-                              hist->overridden);
-    }
-
-    // If the overriding predictor was used,
-    // also update it with the correct result
-    if (overridingCPred) {
-
-        overridingCPred->update(tid, hist->pc, hist->actuallyTaken,
-                                hist->overridingBpHistory, false, hist->inst,
-                                hist->target->instAddr());
-    }
 
     // Commit also Indirect predictor and RAS
     if (iPred) {
@@ -505,13 +452,6 @@ BPredUnit::squashHistory(ThreadID tid, PredictorHistory* &history)
     // This call will  delete the bpHistory.
     cPred->squash(tid, history->bpHistory);
 
-    // If the overriding predictor was used, also squash it
-    // This call will delete the overridingBpHistory.
-    if (overridingCPred) {
-        overridingCPred->squash(tid, history->overridingBpHistory);
-        assert(history->overridingBpHistory == nullptr);
-    }
-
     delete history;
     history = nullptr;
 }
@@ -583,15 +523,9 @@ BPredUnit::squash(const InstSeqNum &squashed_sn,
         set(hist->target,  corr_target);
 
         // Correct Direction predictor ------------------
-        cPred->update(tid, hist->pc, actually_taken, hist->bpHistory, true,
-                      hist->inst, corr_target.instAddr());
+        cPred->update(tid, hist->pc, actually_taken, hist->bpHistory,
+                      true, hist->inst, corr_target.instAddr());
 
-        // If the overriding predictor was used, also update it
-        if (overridingCPred) {
-            overridingCPred->update(tid, hist->pc, actually_taken,
-                                    hist->overridingBpHistory, true,
-                                    hist->inst, corr_target.instAddr());
-        }
 
         // Correct Indirect predictor -------------------
         if (iPred) {
@@ -675,23 +609,17 @@ BPredUnit::updateBTB(ThreadID tid, PredictorHistory *&hist)
         if (hist->condPred) ++stats.predTakenBTBMiss;
     }
 
-    stats.uniqueBranches.insert(hist->pc);
     stats.BTBUpdates++;
     btb->update(tid, hist->pc, *hist->target, hist->type, hist->inst);
     btb->incorrectTarget(hist->pc, hist->type);
 }
 
 void
-BPredUnit::branchPlaceholder(ThreadID tid, Addr pc, bool uncond,
-                             PredictorHistory *&hist)
+BPredUnit::branchPlaceholder(ThreadID tid, Addr pc,
+                             bool uncond, void * &bp_history)
 {
     // Delegate to conditional predictor
-    cPred->branchPlaceholder(tid, pc, uncond, hist->bpHistory);
-    // If the overriding predictor is used, also call it
-    if (overridingCPred) {
-        overridingCPred->branchPlaceholder(tid, pc, uncond,
-                                           hist->overridingBpHistory);
-    }
+    cPred->branchPlaceholder(tid, pc, uncond, bp_history);
 }
 
 void
@@ -718,57 +646,37 @@ BPredUnit::dump()
     }
 }
 
-void
-BPredUnit::updateStatsOverriding(bool prediction, bool actuallyTaken,
-                                 bool overridden)
-{
-    if (prediction != actuallyTaken) {
-        if (overridden) {
-            ++stats.condWrongOverridden;
-        } else {
-            ++stats.condWrongBasePred;
-        }
-    } else {
-        if (overridden) {
-            ++stats.condCorrectOverridden;
-        } else {
-            ++stats.condCorrectBasePred;
-        }
-    }
-}
 
 BPredUnit::BPredUnitStats::BPredUnitStats(BPredUnit *bp)
     : statistics::Group(bp),
-      uniqueBranches(),
       ADD_STAT(lookups, statistics::units::Count::get(),
-               "Number of BP lookups"),
+              "Number of BP lookups"),
       ADD_STAT(squashes, statistics::units::Count::get(),
-               "Number of branches that got squashed (completely removed) as "
-               "an earlier branch was mispredicted."),
+              "Number of branches that got squashed (completely removed) as "
+              "an earlier branch was mispredicted."),
       ADD_STAT(corrected, statistics::units::Count::get(),
-               "Number of branches that got corrected but not yet commited. "
-               "Branches get corrected by decode or after execute. Also a "
-               "branch misprediction can be detected out-of-order. Therefore, "
-               "a corrected branch might not end up beeing committed in case "
-               "an even earlier branch was mispredicted"),
+              "Number of branches that got corrected but not yet commited. "
+              "Branches get corrected by decode or after execute. Also a "
+              "branch misprediction can be detected out-of-order. Therefore, "
+              "a corrected branch might not end up beeing committed in case "
+              "an even earlier branch was mispredicted"),
       ADD_STAT(earlyResteers, statistics::units::Count::get(),
-               "Number of branches that got redirected after decode."),
+              "Number of branches that got redirected after decode."),
       ADD_STAT(committed, statistics::units::Count::get(),
-               "Number of branches finally committed "),
+              "Number of branches finally committed "),
       ADD_STAT(mispredicted, statistics::units::Count::get(),
-               "Number of committed branches that were mispredicted."),
+              "Number of committed branches that were mispredicted."),
       ADD_STAT(mispredictDueToPredictor, statistics::units::Count::get(),
-               "Number of committed branches that were mispredicted by the "
-               "predictor."),
-      ADD_STAT(
-          mispredictDueToBTBMiss, statistics::units::Count::get(),
-          "Number of committed branches that were mispredicted because of "
-          "a BTB miss."),
+              "Number of committed branches that were mispredicted by the "
+              "predictor."),
+      ADD_STAT(mispredictDueToBTBMiss, statistics::units::Count::get(),
+              "Number of committed branches that were mispredicted because of "
+              "a BTB miss."),
       ADD_STAT(targetProvider, statistics::units::Count::get(),
-               "The component providing the target for taken branches"),
+              "The component providing the target for taken branches"),
       ADD_STAT(targetWrong, statistics::units::Count::get(),
-               "Number of branches where the target was incorrect or not "
-               "available at prediction time."),
+              "Number of branches where the target was incorrect or not "
+              "available at prediction time."),
       ADD_STAT(condPredicted, statistics::units::Count::get(),
                "Number of conditional branches predicted"),
       ADD_STAT(condPredictedTaken, statistics::units::Count::get(),
@@ -777,24 +685,12 @@ BPredUnit::BPredUnitStats::BPredUnitStats(BPredUnit *bp)
                "Number of conditional branches incorrect"),
       ADD_STAT(predTakenBTBMiss, statistics::units::Count::get(),
                "Number of branches predicted taken but missed in BTB"),
-      ADD_STAT(condWrongBasePred, statistics::units::Count::get(),
-               "Number of branches predicted wrong with the "
-               "base predictor (not overridden)"),
-      ADD_STAT(condWrongOverridden, statistics::units::Count::get(),
-               "Number of branches predicted wrong after being overridden"),
-      ADD_STAT(condCorrectBasePred, statistics::units::Count::get(),
-               "Number of branches predicted correctly only by the "
-               "base predictor (not overridden)"),
-      ADD_STAT(condCorrectOverridden, statistics::units::Count::get(),
-               "Number of branches predicted correctly "
-               "after being overridden"),
-      ADD_STAT(BTBUniqueBranches, statistics::units::Count::get(),
-               "Number of unique branches encountered by the BTB"),
       ADD_STAT(BTBLookups, statistics::units::Count::get(),
                "Number of BTB lookups"),
       ADD_STAT(BTBUpdates, statistics::units::Count::get(),
                "Number of BTB updates"),
-      ADD_STAT(BTBHits, statistics::units::Count::get(), "Number of BTB hits"),
+      ADD_STAT(BTBHits, statistics::units::Count::get(),
+               "Number of BTB hits"),
       ADD_STAT(BTBHitRatio, statistics::units::Ratio::get(), "BTB Hit Ratio",
                BTBHits / BTBLookups),
       ADD_STAT(BTBMispredicted, statistics::units::Count::get(),
@@ -862,20 +758,6 @@ BPredUnit::BPredUnitStats::BPredUnitStats(BPredUnit *bp)
         .flags(total | pdf);
     targetWrong.ysubnames(enums::BranchTypeStrings);
 
-}
-
-void
-BPredUnit::BPredUnitStats::preDumpStats()
-{
-    BTBUniqueBranches = uniqueBranches.size();
-}
-
-void
-BPredUnit::BPredUnitStats::resetStats()
-{
-    statistics::Group::resetStats();
-
-    uniqueBranches.clear();
 }
 
 } // namespace branch_prediction

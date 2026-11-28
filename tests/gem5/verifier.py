@@ -40,7 +40,6 @@
 """
 Built in test cases that verify particular details about a gem5 run.
 """
-
 import json
 import os
 import re
@@ -78,7 +77,7 @@ class CheckH5StatsExist(Verifier):
         tempdir = params.fixtures[constants.tempdir_fixture_name].path
         h5_file = joinpath(tempdir, self.stats_file)
         if not os.path.isfile(h5_file):
-            raise AssertionError(f"Could not find h5 stats file {h5_file}")
+            test_util.fail("Could not find h5 stats file %s", h5_file)
 
 
 class MatchGoldStandard(Verifier):
@@ -109,18 +108,16 @@ class MatchGoldStandard(Verifier):
         fixtures = params.fixtures
         # Get the file from the tempdir of the test.
         tempdir = fixtures[constants.tempdir_fixture_name].path
-        # Use a local path so reused verifier instances don't retain the
-        # previous test's tempdir.
-        test_filename = joinpath(tempdir, self.test_filename)
+        self.test_filename = joinpath(tempdir, self.test_filename)
 
         diff = diff_out_file(
             self.standard_filename,
-            test_filename,
+            self.test_filename,
             ignore_regexes=self.ignore_regex,
             logger=params.log,
         )
         if diff is not None:
-            raise AssertionError(
+            test_util.fail(
                 f"Stdout did not match:\n{diff}\nSee {tempdir} for full results"
             )
 
@@ -244,7 +241,7 @@ class MatchFileRegex(Verifier):
             if self.parse_file(joinpath(tempdir, fname)):
                 return  # Success
 
-        raise AssertionError("Could not match regex.")
+        test_util.fail("Could not match regex.")
 
 
 class MatchRegex(MatchFileRegex):
@@ -275,14 +272,13 @@ class NoMatchRegex(MatchRegex):
 
         for fname in self.filenames:
             if self.parse_file(joinpath(tempdir, fname)):
-                raise AssertionError("Regex matched unexpectedly.")
+                test_util.fail("Could not match regex.")
 
 
 class MatchJSONStats(Verifier):
     """
-    Compare trusted statistics with gem5's JSON output. Trusted dictionaries
-    select entries recursively, allowing extra output statistics and metadata.
-    Lists must have the same length and order, including per-core records.
+    Verifer to check the correctness of stats reported by gem5. It uses
+    gem5stats to store the stastistics as json files and does the comparison.
     """
 
     def __init__(
@@ -305,57 +301,35 @@ class MatchJSONStats(Verifier):
     def _compare_stats(self, trusted_file, test_file):
         trusted_stats = json.load(trusted_file)
         test_stats = json.load(test_file)
-        missing = object()
-
-        def compare(trusted, actual, path):
-            if isinstance(trusted, dict) and isinstance(actual, dict):
-                for key, value in trusted.items():
-                    yield from compare(
-                        value, actual.get(key, missing), f"{path}.{key}"
-                    )
-            elif isinstance(trusted, list) and isinstance(actual, list):
-                if len(trusted) != len(actual):
-                    yield f"{path}.length", len(trusted), len(actual)
-                else:
-                    for index, (value, output) in enumerate(
-                        zip(trusted, actual)
-                    ):
-                        yield from compare(value, output, f"{path}[{index}]")
-            elif (
-                isinstance(trusted, bool) != isinstance(actual, bool)
-                or trusted != actual
-            ):
-                yield path, trusted, actual
-
-        diffs = list(compare(trusted_stats, test_stats, "$"))
-        if diffs:
+        is_subset = trusted_stats.items() <= test_stats.items()
+        if is_subset:
             err = (
                 "Following differences found between "
                 + f"{self.truth_name} and {self.test_name}.\n"
             )
-            for path, trusted_value, test_value in diffs:
-                if test_value is missing:
-                    test_value = "<missing>"
-                err += f"{path}:\n"
+            diffs = set(trusted_stats.items()) - set(test_stats.items())
+            for diff in diffs:
+                trusted_value = trusted_stats[diff[0]]
+                test_value = None
+                if diff[0] in test_stats.keys():
+                    test_value = test_stats[diff[0]]
+                err += f"{diff[0]}:\n"
                 err += (
                     f"trusted_value: {trusted_value}, "
-                    + f"test_value: {test_value}\n"
+                    + f"test_value: {test_value}"
                 )
-            raise AssertionError(err)
+            test_util.fail(err)
 
     def test(self, params):
+        trusted_file = open(self.truth_name)
         if self.test_name_in_outdir:
             fixtures = params.fixtures
             tempdir = fixtures[constants.tempdir_fixture_name].path
-            test_name = joinpath(tempdir, self.test_name)
+            test_file = open(joinpath(tempdir, self.test_name))
         else:
-            test_name = self.test_name
+            test_file = open(self.test_name)
 
-        with (
-            open(self.truth_name) as trusted_file,
-            open(test_name) as test_file,
-        ):
-            return self._compare_stats(trusted_file, test_file)
+        return self._compare_stats(trusted_file, test_file)
 
 
 _re_type = type(re.compile(""))

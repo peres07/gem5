@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010,2012-2014,2016-2019,2022,2024,2026 Arm Limited
+ * Copyright (c) 2010, 2012-2014, 2016-2019, 2022, 2024 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -1105,7 +1105,7 @@ AbortFault<T>::update(ThreadContext *tc)
                 override_LPAE = true;
             } else {
                 // Unimplemented code option, not seen in testing.  May need
-                // extension according to the manual excerpt above.
+                // extension according to the manual exceprt above.
                 DPRINTF(Faults, "Warning: Incomplete translation method "
                         "override detected.\n");
             }
@@ -1292,15 +1292,16 @@ PrefetchAbort::routeToMonitor(ThreadContext *tc) const
 bool
 PrefetchAbort::routeToHyp(ThreadContext *tc) const
 {
-    bool to_hyp;
+    bool toHyp;
 
     HCR  hcr  = tc->readMiscRegNoEffect(MISCREG_HCR_EL2);
     HDCR hdcr = tc->readMiscRegNoEffect(MISCREG_HDCR);
 
-    to_hyp = fromEL == EL2;
-    to_hyp |= EL2Enabled(tc) && currEL(tc) <= EL1 &&
-              (hcr.tge || stage2 || (source == DebugEvent && hdcr.tde));
-    return to_hyp;
+    toHyp = fromEL == EL2;
+    toHyp |=  ArmSystem::haveEL(tc, EL2) && !isSecure(tc) &&
+        currEL(tc) <= EL1 && (hcr.tge || stage2 ||
+                              (source == DebugEvent && hdcr.tde));
+     return toHyp;
 }
 
 ExceptionClass
@@ -1821,16 +1822,6 @@ getFaultVAddr(Fault fault, Addr &va)
         // Return false since it's not an address triggered exception
         return false;
     }
-}
-
-ArmFault::FaultSource
-llFaultSource(ArmFault::FaultSource baseLL, enums::ArmLookupLevel level)
-{
-    assert(level < 4);
-
-    using U = std::underlying_type_t<ArmFault::FaultSource>;
-    const auto base = static_cast<U>(baseLL);
-    return static_cast<ArmFault::FaultSource>(base + static_cast<U>(level));
 }
 
 } // namespace ArmISA

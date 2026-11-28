@@ -91,7 +91,7 @@ class RandomGenerator(AbstractGenerator):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
-    ) -> list[RandomGeneratorCore]:
+    ) -> List[RandomGeneratorCore]:
         """
         The helper function to create the cores for the generator, it will use
         the same inputs as the constructor function.

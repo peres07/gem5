@@ -177,8 +177,7 @@ class CacheBlk : public TaggedEntry
         assert(!isValid());
         assert(other.isValid());
 
-        copyTagsFrom(other);
-        setValid();
+        insert({other.getTag(), other.isSecure()});
 
         if (other.wasPrefetched()) {
             setPrefetched();

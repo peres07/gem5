@@ -243,20 +243,10 @@ PIF::PrefetchListenerPC::notify(const Addr& pc)
 }
 
 void
-PIF::regProbeListeners()
-{
-    for (const auto &[obj, name] : probeEventsPC) {
-        ProbeManager *pm = obj->getProbeManager();
-        listenersPC.push_back(pm->connect<PrefetchListenerPC>(*this, name));
-    }
-
-    Queued::regProbeListeners();
-}
-
-void
 PIF::addEventProbeRetiredInsts(SimObject *obj, const char *name)
 {
-    probeEventsPC.emplace_back(obj, name);
+    ProbeManager *pm = obj->getProbeManager();
+    listenersPC.push_back(pm->connect<PrefetchListenerPC>(*this, name));
 }
 
 } // namespace prefetch

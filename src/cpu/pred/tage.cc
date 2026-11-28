@@ -110,21 +110,20 @@ TAGE::squash(ThreadID tid, void * &bp_history)
     bp_history = nullptr;
 }
 
-Prediction
-TAGE::predict(ThreadID tid, Addr pc, bool cond_branch, void *&b)
+bool
+TAGE::predict(ThreadID tid, Addr pc, bool cond_branch, void* &b)
 {
     TageBranchInfo *bi = new TageBranchInfo(*tage, pc, cond_branch);
-    b = (void *)(bi);
-    return predictWithDefaultLatency(
-        tage->tagePredict(tid, pc, cond_branch, bi->tageBranchInfo));
+    b = (void*)(bi);
+    return tage->tagePredict(tid, pc, cond_branch, bi->tageBranchInfo);
 }
 
-Prediction
-TAGE::lookup(ThreadID tid, Addr pc, void *&bp_history)
+bool
+TAGE::lookup(ThreadID tid, Addr pc, void* &bp_history)
 {
-    Prediction retval = predict(tid, pc, true, bp_history);
+    bool retval = predict(tid, pc, true, bp_history);
 
-    DPRINTF(Tage, "Lookup branch: %lx; predict:%d\n", pc, retval.taken);
+    DPRINTF(Tage, "Lookup branch: %lx; predict:%d\n", pc, retval);
 
     return retval;
 }

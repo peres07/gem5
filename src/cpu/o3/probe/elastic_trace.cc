@@ -40,7 +40,6 @@
 #include "base/callback.hh"
 #include "base/output.hh"
 #include "base/trace.hh"
-#include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/reg_class.hh"
 #include "debug/ElasticTrace.hh"
@@ -128,17 +127,17 @@ ElasticTrace::regEtraceListeners()
     // each probe point.
     connectListener<ProbeListenerArg<ElasticTrace, RequestPtr>>(
         this, "FetchRequest", &ElasticTrace::fetchReqTrace);
-    connectListener<ProbeListenerArg<ElasticTrace, DynInstPtr>>(
+    connectListener<ProbeListenerArg<ElasticTrace, DynInstConstPtr>>(
         this, "Execute", &ElasticTrace::recordExecTick);
-    connectListener<ProbeListenerArg<ElasticTrace, DynInstPtr>>(
+    connectListener<ProbeListenerArg<ElasticTrace, DynInstConstPtr>>(
         this, "ToCommit", &ElasticTrace::recordToCommTick);
-    connectListener<ProbeListenerArg<ElasticTrace, DynInstPtr>>(
+    connectListener<ProbeListenerArg<ElasticTrace, DynInstConstPtr>>(
         this, "Rename", &ElasticTrace::updateRegDep);
     connectListener<ProbeListenerArg<ElasticTrace, SeqNumRegPair>>(
         this, "SquashInRename", &ElasticTrace::removeRegDepMapEntry);
-    connectListener<ProbeListenerArg<ElasticTrace, DynInstPtr>>(
+    connectListener<ProbeListenerArg<ElasticTrace, DynInstConstPtr>>(
         this, "Squash", &ElasticTrace::addSquashedInst);
-    connectListener<ProbeListenerArg<ElasticTrace, DynInstPtr>>(
+    connectListener<ProbeListenerArg<ElasticTrace, DynInstConstPtr>>(
         this, "Commit", &ElasticTrace::addCommittedInst);
     allProbesReg = true;
 }
@@ -166,7 +165,7 @@ ElasticTrace::fetchReqTrace(const RequestPtr &req)
 }
 
 void
-ElasticTrace::recordExecTick(const DynInstPtr &dyn_inst)
+ElasticTrace::recordExecTick(const DynInstConstPtr& dyn_inst)
 {
 
     // In a corner case, a retired instruction is propagated backward to the
@@ -203,7 +202,7 @@ ElasticTrace::recordExecTick(const DynInstPtr &dyn_inst)
 }
 
 void
-ElasticTrace::recordToCommTick(const DynInstPtr &dyn_inst)
+ElasticTrace::recordToCommTick(const DynInstConstPtr& dyn_inst)
 {
     // If tracing has just been enabled then the instruction at this stage of
     // execution is far enough that we cannot gather info about its past like
@@ -224,7 +223,7 @@ ElasticTrace::recordToCommTick(const DynInstPtr &dyn_inst)
 }
 
 void
-ElasticTrace::updateRegDep(const DynInstPtr &dyn_inst)
+ElasticTrace::updateRegDep(const DynInstConstPtr& dyn_inst)
 {
     // Get the sequence number of the instruction
     InstSeqNum seq_num = dyn_inst->seqNum;
@@ -293,15 +292,15 @@ ElasticTrace::updateRegDep(const DynInstPtr &dyn_inst)
 void
 ElasticTrace::removeRegDepMapEntry(const SeqNumRegPair &inst_reg_pair)
 {
-    RegIndex reg_idx = inst_reg_pair.second->index();
-    DPRINTFR(ElasticTrace, "Remove Map entry for Reg %i\n", reg_idx);
-    auto itr_regdep_map = physRegDepMap.find(reg_idx);
+    DPRINTFR(ElasticTrace, "Remove Map entry for Reg %i\n",
+            inst_reg_pair.second);
+    auto itr_regdep_map = physRegDepMap.find(inst_reg_pair.second);
     if (itr_regdep_map != physRegDepMap.end())
         physRegDepMap.erase(itr_regdep_map);
 }
 
 void
-ElasticTrace::addSquashedInst(const DynInstPtr &head_inst)
+ElasticTrace::addSquashedInst(const DynInstConstPtr& head_inst)
 {
     // If the squashed instruction was squashed before being processed by
     // execute stage then it will not be in the temporary store. In this case
@@ -329,7 +328,7 @@ ElasticTrace::addSquashedInst(const DynInstPtr &head_inst)
 }
 
 void
-ElasticTrace::addCommittedInst(const DynInstPtr &head_inst)
+ElasticTrace::addCommittedInst(const DynInstConstPtr& head_inst)
 {
     DPRINTFR(ElasticTrace, "Attempt to add committed inst [sn:%lli]\n",
                 head_inst->seqNum);
@@ -388,8 +387,8 @@ ElasticTrace::addCommittedInst(const DynInstPtr &head_inst)
 }
 
 void
-ElasticTrace::addDepTraceRecord(const DynInstPtr &head_inst,
-                                InstExecInfo *exec_info_ptr, bool commit)
+ElasticTrace::addDepTraceRecord(const DynInstConstPtr& head_inst,
+                                InstExecInfo* exec_info_ptr, bool commit)
 {
     // Create a record to assign dynamic intruction related fields.
     TraceInfo* new_record = new TraceInfo;
@@ -650,7 +649,7 @@ ElasticTrace::hasCompCompleted(TraceInfo* past_record,
 }
 
 void
-ElasticTrace::clearTempStoreUntil(const DynInstPtr &head_inst)
+ElasticTrace::clearTempStoreUntil(const DynInstConstPtr& head_inst)
 {
     // Clear from temp store starting with the execution info object
     // corresponding the head_inst and continue clearing by decrementing the

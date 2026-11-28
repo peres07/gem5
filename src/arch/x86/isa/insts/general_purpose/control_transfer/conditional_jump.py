@@ -41,7 +41,8 @@ def macroop JZ_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CZF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CZF,)
 };
 
 def macroop JNZ_I
@@ -51,7 +52,8 @@ def macroop JNZ_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCZF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCZF,)
 };
 
 def macroop JB_I
@@ -61,7 +63,8 @@ def macroop JB_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CCF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CCF,)
 };
 
 def macroop JNB_I
@@ -71,7 +74,8 @@ def macroop JNB_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCCF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCCF,)
 };
 
 def macroop JBE_I
@@ -81,7 +85,8 @@ def macroop JBE_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CCvZF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CCvZF,)
 };
 
 def macroop JNBE_I
@@ -91,7 +96,8 @@ def macroop JNBE_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCCvZF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCCvZF,)
 };
 
 def macroop JS_I
@@ -101,7 +107,8 @@ def macroop JS_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CSF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CSF,)
 };
 
 def macroop JNS_I
@@ -111,7 +118,8 @@ def macroop JNS_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCSF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCSF,)
 };
 
 def macroop JP_I
@@ -121,7 +129,8 @@ def macroop JP_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CPF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CPF,)
 };
 
 def macroop JNP_I
@@ -131,7 +140,8 @@ def macroop JNP_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCPF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCPF,)
 };
 
 def macroop JL_I
@@ -141,7 +151,8 @@ def macroop JL_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CSxOF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CSxOF,)
 };
 
 def macroop JNL_I
@@ -151,7 +162,8 @@ def macroop JNL_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCSxOF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCSxOF,)
 };
 
 def macroop JLE_I
@@ -161,7 +173,8 @@ def macroop JLE_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(CSxOvZF,)
+    limm t2, imm
+    wrip t1, t2, flags=(CSxOvZF,)
 };
 
 def macroop JNLE_I
@@ -171,7 +184,8 @@ def macroop JNLE_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCSxOvZF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCSxOvZF,)
 };
 
 def macroop JO_I
@@ -181,7 +195,8 @@ def macroop JO_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(COF,)
+    limm t2, imm
+    wrip t1, t2, flags=(COF,)
 };
 
 def macroop JNO_I
@@ -191,7 +206,8 @@ def macroop JNO_I
     .control_direct
 
     rdip t1
-    wripi t1, imm, flags=(nCOF,)
+    limm t2, imm
+    wrip t1, t2, flags=(nCOF,)
 };
 
 def macroop JRCXZ_I

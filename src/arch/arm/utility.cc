@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014, 2016-2020, 2022-2026 Arm Limited
+ * Copyright (c) 2009-2014, 2016-2020, 2022-2025 Arm Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -543,31 +543,31 @@ SPAlignmentCheckEnabled(ThreadContext *tc)
     }
 }
 
-Request::Flags
-addrAlignmentFlags(int memsize, Request::Flags flags)
+unsigned
+addrAlignmentFlags(int memsize, unsigned memAccessFlags)
 {
-    flags.clear(MMU::AlignmentMask);
+    unsigned flags = memAccessFlags & (~(unsigned)MMU::AlignmentMask);
     switch (memsize) {
         case 1:
-            flags.set(MMU::AlignByte);
+            flags = flags | MMU::AlignByte;
             break;
         case 2:
-            flags.set(MMU::AlignHalfWord);
+            flags = flags | MMU::AlignHalfWord;
             break;
         case 4:
-            flags.set(MMU::AlignWord);
+            flags = flags | MMU::AlignWord;
             break;
         case 8:
-            flags.set(MMU::AlignDoubleWord);
+            flags = flags | MMU::AlignDoubleWord;
             break;
         case 16:
-            flags.set(MMU::AlignQuadWord);
+            flags = flags | MMU::AlignQuadWord;
             break;
         case 32:
-            flags.set(MMU::AlignOctWord);
+            flags = flags | MMU::AlignOctWord;
             break;
         default:
-            flags.set(MMU::AllowUnaligned);
+            flags = flags | MMU::AllowUnaligned;
             break;
     }
     return flags;

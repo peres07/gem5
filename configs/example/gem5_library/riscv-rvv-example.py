@@ -100,8 +100,7 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
 memory = SingleChannelDDR3_1600()
 
 processor = BaseCPUProcessor(
-    cores=[RVVCore(args.elen, args.vlen, i) for i in range(args.cores)],
-    clk_freq="1GHz",
+    cores=[RVVCore(args.elen, args.vlen, i) for i in range(args.cores)]
 )
 
 board = SimpleBoard(

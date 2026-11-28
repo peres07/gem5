@@ -34,6 +34,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.AbstractMemory import AbstractMemory
+from m5.objects.QoSMemSinkCtrl import QoSMemSinkCtrl
 
 
 class QoSMemSinkInterface(AbstractMemory):
@@ -46,8 +47,6 @@ class QoSMemSinkInterface(AbstractMemory):
         Instantiate the memory controller and bind it to
         the current interface.
         """
-        from m5.objects.QoSMemSinkCtrl import QoSMemSinkCtrl
-
         controller = QoSMemSinkCtrl()
         controller.interface = self
         return controller

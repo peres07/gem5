@@ -45,8 +45,8 @@ def test_suite(
     id: str,
     isa: str,
     is_fs: bool,
-    version: str | None = None,
-    to_tick: int | None = None,
+    version: Optional[str] = None,
+    to_tick: Optional[int] = None,
 ):
     name = f"suite-{id}_{isa}_suite_test"
 

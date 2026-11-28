@@ -51,12 +51,13 @@ class VIPERSequencer : public Sequencer
     ~VIPERSequencer();
 
   private:
-    void hitCallback(SequencerRequest *srequest, DataBlock &data,
-                     bool llscSuccess, const MachineType mach,
-                     const bool externalHit, const int cBusy,
+    void hitCallback(SequencerRequest* srequest, DataBlock& data,
+                     bool llscSuccess,
+                     const MachineType mach, const bool externalHit,
                      const Cycles initialRequestTime,
                      const Cycles forwardRequestTime,
-                     const Cycles firstResponseTime, const bool was_coalesced);
+                     const Cycles firstResponseTime,
+                     const bool was_coalesced);
 
     bool processReadCallback(SequencerRequest &seq_req,
                              DataBlock& data,

@@ -6,8 +6,6 @@
 import argparse
 import json
 from configparser import ConfigParser
-from dataclasses import replace
-from pathlib import Path
 
 from fluxo_p12 import (
     ERROS_DADOS,
@@ -36,10 +34,6 @@ def enlaces_externos(pasta):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     adiciona_opcoes(ap)
-    ap.add_argument(
-        "--original", type=Path,
-        help="compara tambem o binario X86 da mesma base, sem o P12",
-    )
     args = ap.parse_args()
     fluxo = configura(ap, args)
     pasta = fluxo.saida / "validacao-x86"
@@ -75,23 +69,6 @@ def main():
             raise ValueError(
                 "a troca nao corresponde aos enlaces de config.ini"
             )
-        if args.original:
-            original = replace(fluxo, gem5=args.original)
-            for prog in PROGRAMAS:
-                base = pasta / prog / "original"
-                desligada = pasta / prog / "coleta-desligada"
-                base_info = original.roda(
-                    base, prog, 16, semente, topologia="Mesh_XY", coleta=False
-                )
-                desligada_info = fluxo.roda(
-                    desligada, prog, 16, semente, topologia="Mesh_XY",
-                    coleta=False,
-                )
-                if base_info != desligada_info:
-                    raise ValueError(f"checksum diverge do original: {prog}")
-                compara(base, desligada)
-        else:
-            print("Comparacao X86 com binario original omitida (--original).")
     except ERROS_DADOS as erro:
         ap.exit(1, f"Falha: {erro}; veja {pasta}\n")
     print(f"Validacao X86 OK: {pasta}")

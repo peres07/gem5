@@ -46,11 +46,10 @@ class GPUExecContext
 {
   public:
     GPUExecContext(ComputeUnit *_cu, Wavefront *_wf);
-    Wavefront *wavefront();
-    ComputeUnit *computeUnit();
+    Wavefront* wavefront();
+    ComputeUnit* computeUnit();
 
-    template <typename T>
-    T
+    template<typename T> T
     readConstVal(int opIdx) const
     {
         return gpuISA->readConstVal<T>(opIdx);

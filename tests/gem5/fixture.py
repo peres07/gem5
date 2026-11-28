@@ -39,6 +39,7 @@
 import gzip
 import os
 import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -58,7 +59,6 @@ from testlib.fixture import Fixture
 from testlib.helper import (
     absdirpath,
     cacheresult,
-    gcov_delete_files,
     joinpath,
     log_call,
 )
@@ -97,7 +97,7 @@ class TempdirFixture(Fixture):
         shutil.copytree(self.path, testing_result_folder)
 
     def teardown(self, testitem):
-        if testitem.result.value == Result.Passed:
+        if testitem.result == Result.Passed:
             shutil.rmtree(self.path)
 
 
@@ -158,12 +158,6 @@ class SConsFixture(UniqueFixture):
 
     def _setup(self, testitem):
         if config.skip_build:
-            if config.gcov:
-                log.test_log.message(
-                    "Now removing gcda and .py.gcno files in the directory "
-                    f"{self.target_dir}"
-                )
-                gcov_delete_files(self.target_dir, "all")
             return
 
         if not self.targets:
@@ -183,6 +177,7 @@ class SConsFixture(UniqueFixture):
             "-C",
             self.directory,
             "--ignore-style",
+            "--no-compress-debug",
             "defconfig",
             self.target_dir,
             joinpath(self.directory, "build_opts", self.isa.upper()),
@@ -197,6 +192,7 @@ class SConsFixture(UniqueFixture):
                 "-C",
                 self.directory,
                 "--ignore-style",
+                "--no-compress-debug",
                 "setconfig",
                 self.target_dir,
                 f"RUBY_PROTOCOL_{self.protocol.upper()}=y",
@@ -212,6 +208,7 @@ class SConsFixture(UniqueFixture):
             "-C",
             self.directory,
             "--ignore-style",
+            "--no-compress-debug",
             "setconfig",
             self.target_dir,
             "USE_TEST_OBJECTS=y",
@@ -231,24 +228,10 @@ class SConsFixture(UniqueFixture):
             "-j",
             str(config.threads),
             "--ignore-style",
+            "--no-compress-debug",
         ]
-
-        if config.gcov:
-            command.append("--gcov")
-
         command.extend(self.targets)
         log_call(log.test_log, command, time=None, stderr=sys.stderr)
-
-        if config.gcov:
-            # Remove gcda files that are created during the build process, as
-            # they cause problems when running gcov after the tests finish.
-            # Similarly, remove gcno files for Python files as they also cause
-            # problems when running gcov.
-            log.test_log.message(
-                "Now removing gcda and .py.gcno files generated during the "
-                f"build process. In the directory {self.target_dir}."
-            )
-            gcov_delete_files(self.target_dir, "all")
 
 
 class Gem5Fixture(SConsFixture):
@@ -268,14 +251,11 @@ class Gem5Fixture(SConsFixture):
         self.path = self.target
         self.directory = config.base_dir
 
-        self.gcov = config.gcov
-        self.test_threads = config.test_threads
-
         self.isa = isa
         self.protocol = protocol
         self.set_global()
 
-    def get_get_build_info(self) -> str | None:
+    def get_get_build_info(self) -> Optional[str]:
         build_target = self.target
         return build_target
 
@@ -393,9 +373,10 @@ class DownloadedProgram(UniqueFixture):
             urllib.request.urlretrieve(self.url, self.filename)
 
     def _getremotetime(self):
-        import _strptime  # Needed for python threading bug
         import datetime
         import time
+
+        import _strptime  # Needed for python threading bug
 
         u = urllib.request.urlopen(self.url, timeout=10)
 
@@ -412,7 +393,7 @@ class DownloadedProgram(UniqueFixture):
         else:
             try:
                 t = self._getremotetime()
-            except (urllib.error.URLError, TimeoutError):
+            except (urllib.error.URLError, socket.timeout):
                 # Problem checking the server, use the old files.
                 log.test_log.debug(
                     "Could not contact server. Binaries may be old."
@@ -461,7 +442,7 @@ class DownloadedArchive(DownloadedProgram):
         else:
             try:
                 t = self._getremotetime()
-            except (urllib.error.URLError, TimeoutError):
+            except (urllib.error.URLError, socket.timeout):
                 # Problem checking the server, use the old files.
                 log.test_log.debug(
                     "Could not contact server. Binaries may be old."

@@ -1,9 +1,8 @@
 # m5 Util
 
-These test the util m5 exit magic instruction across different ISAs.
+These test the util m5 exit assembly instruction.
+To run these tests by themselves, you can run the following command in the tests directory:
 
-To run these tests you can run the following command in the "tests" directory:
-
-```sh
-./main.py run gem5/m5_util -j`nproc`
+```bash
+./main.py run gem5/m5_util --length=[length]
 ```

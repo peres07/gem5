@@ -41,7 +41,6 @@ Usage
     configs/example/gem5_library/looppoints/restore-looppoint-checkpoint.py
 ```
 """
-
 import argparse
 
 from m5.stats import (
@@ -111,7 +110,6 @@ processor = SimpleProcessor(
     # The number of cores must be equal or greater than that used when taking
     # the checkpoint.
     num_cores=9,
-    clk_freq="3GHz",
 )
 
 board = SimpleBoard(

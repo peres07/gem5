@@ -47,9 +47,6 @@
 #define __MEM_CACHE_PREFETCH_BASE_HH__
 
 #include <cstdint>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "arch/generic/tlb.hh"
 #include "base/compiler.hh"
@@ -105,9 +102,6 @@ class Base : public ClockedObject
     };
 
     std::vector<ProbeListenerPtr<>> listeners;
-
-    /** Probes to connect in regProbeListeners() */
-    std::vector<std::pair<SimObject *, std::string>> probeEvents;
 
   public:
 
@@ -453,8 +447,7 @@ class Base : public ClockedObject
     void probeNotify(const CacheAccessProbeArg &acc, bool miss);
 
     /**
-     * Add a SimObject and a probe name to listen events from. The listener
-     * is only connected in regProbeListeners().
+     * Add a SimObject and a probe name to listen events from
      * @param obj The SimObject pointer to listen from
      * @param name The probe name
      */

@@ -58,7 +58,6 @@ namespace o3
 {
 
 class UnifiedFreeList;
-class CPU;
 
 /**
  * Simple physical register file class.
@@ -72,9 +71,6 @@ class PhysRegFile
     using IdRange = std::pair<PhysIds::iterator,
                               PhysIds::iterator>;
   private:
-    /** CPU pointer. */
-    CPU *cpu;
-
     /** Integer register file. */
     RegFile intRegFile;
     std::vector<PhysRegId> intRegIds;
@@ -149,14 +145,13 @@ class PhysRegFile
      * Constructs a physical register file with the specified amount of
      * integer and floating point registers.
      */
-    PhysRegFile(CPU *_cpu, unsigned _numPhysicalIntRegs,
-                unsigned _numPhysicalFloatRegs, unsigned _numPhysicalVecRegs,
-                unsigned _numPhysicalVecPredRegs, unsigned _numPhysicalMatRegs,
+    PhysRegFile(unsigned _numPhysicalIntRegs,
+                unsigned _numPhysicalFloatRegs,
+                unsigned _numPhysicalVecRegs,
+                unsigned _numPhysicalVecPredRegs,
+                unsigned _numPhysicalMatRegs,
                 unsigned _numPhysicalCCRegs,
                 const BaseISA::RegClasses &classes);
-
-    /** Returns the name of the physical register file. */
-    std::string name() const;
 
     /**
      * Destructor to free resources

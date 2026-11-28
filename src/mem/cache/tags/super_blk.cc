@@ -67,7 +67,7 @@ CompressionBlk::operator=(CompressionBlk&& other)
         setUncompressed();
     }
 
-    SectorSubBlk::operator=(std::move(other));
+    CacheBlk::operator=(std::move(other));
     return *this;
 }
 

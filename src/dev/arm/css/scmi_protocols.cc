@@ -267,7 +267,8 @@ BaseProtocol::discoverAgent(Message &msg)
 
         agent_size = agent_name.length();
 
-        strncpy((char *)&payload.name, agent_name.c_str(), agent_size + 1);
+        strncpy((char *)&payload.name,
+                agent_name.c_str(), agent_size);
 
         payload.status = SUCCESS;
         // header + status + payload

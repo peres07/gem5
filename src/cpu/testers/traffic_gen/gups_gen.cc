@@ -166,8 +166,7 @@ GUPSGen::handleResponse(PacketPtr pkt)
         responsePool.push(pkt);
     }
     if (doneReading && requestPool.empty() && onTheFlyRequests == 0) {
-        exitSimulationLoopClassic(name() +
-                                  " is finished updating the memory.\n");
+        exitSimLoop(name() + " is finished updating the memory.\n");
         return;
     }
 

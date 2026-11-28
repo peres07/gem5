@@ -45,7 +45,7 @@ from .isas import (
 )
 
 
-def get_supported_isas() -> set[ISA]:
+def get_supported_isas() -> Set[ISA]:
     """
     Returns the set of all the ISAs compiled into the current binary.
     """
@@ -64,7 +64,7 @@ def get_supported_isas() -> set[ISA]:
     return supported_isas
 
 
-def get_supported_protocols() -> set[CoherenceProtocol]:
+def get_supported_protocols() -> Set[CoherenceProtocol]:
     """
     Returns the set of all the coherence protocols compiled into the current
     binary.

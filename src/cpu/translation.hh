@@ -187,7 +187,7 @@ class WholeTranslationState
      * the main request because the flags will have been copied here on a
      * split translation.
      */
-    Request::Flags
+    unsigned
     getFlags()
     {
         return mainReq->getFlags();

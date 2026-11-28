@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2026 Arm Limited
+# Copyright (c) 2021-2025 Arm Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -40,8 +40,6 @@ import math
 from typing import List
 
 from m5.objects import (
-    CBusy,
-    CBusyTracker,
     ClockDomain,
     RubyCache,
     RubyNetwork,
@@ -51,10 +49,10 @@ from m5.params import (
     AddrRange,
 )
 
-from .abstract_node import CacheController
+from .abstract_node import AbstractNode
 
 
-class BaseDirectory(CacheController):
+class BaseDirectory(AbstractNode):
     """
     BaseDirectory. Mainly providing address range generation
     capabilities (see create_addr_ranges method)
@@ -72,9 +70,9 @@ class BaseDirectory(CacheController):
         cls,
         num_directories: int,
         dir_idx: int,
-        mem_ranges: list[AddrRange],
+        mem_ranges: List[AddrRange],
         cache_line_size,
-    ) -> list[AddrRange]:
+    ) -> List[AddrRange]:
         block_size_bits = int(math.log(cache_line_size, 2))
         llc_bits = int(math.log(num_directories, 2))
         numa_bit = block_size_bits + llc_bits - 1
@@ -104,7 +102,7 @@ class SimpleDirectory(BaseDirectory):
         network: RubyNetwork,
         cache_line_size: int,
         clk_domain: ClockDomain,
-        addr_ranges: list[AddrRange],
+        addr_ranges: List[AddrRange],
     ):
         super().__init__(network, cache_line_size)
 
@@ -151,57 +149,3 @@ class SimpleDirectory(BaseDirectory):
         self.number_of_DVM_TBEs = 1  # should not receive any dvm
         self.number_of_DVM_snoop_TBEs = 1  # should not receive any dvm
         self.unify_repl_TBEs = False
-
-        self.cbusy_generator = CBusy()
-        self.cbusy_tracker = CBusyTracker()
-
-
-class CachedDirectory(BaseDirectory):
-    """A directory/home node (HNF) with an attached cache."""
-
-    def __init__(
-        self,
-        network: RubyNetwork,
-        cache_line_size: int,
-        clk_domain: ClockDomain,
-        cache: RubyCache,
-        prefetcher,
-        addr_ranges: list[AddrRange],
-    ):
-        super().__init__(network, cache_line_size)
-
-        self.sequencer = NULL
-        self.cache = cache
-        self.prefetcher = prefetcher
-        self.use_prefetcher = prefetcher != NULL
-        self.addr_ranges = addr_ranges
-        self.clk_domain = clk_domain
-        self.allow_SD = True
-        self.is_HN = True
-        self.enable_DMT = True
-        self.enable_DCT = True
-        self.send_evictions = False
-
-        # Match CHI_config.py HN defaults.
-        self.alloc_on_seq_acc = False
-        self.alloc_on_seq_line_write = False
-        self.alloc_on_readshared = True
-        self.alloc_on_readunique = False
-        self.alloc_on_readonce = True
-        self.alloc_on_writeback = True
-        self.alloc_on_atomic = True
-        self.dealloc_on_unique = True
-        self.dealloc_on_shared = False
-        self.dealloc_backinv_unique = False
-        self.dealloc_backinv_shared = False
-
-        # Match CHI_config.py HN defaults for TBEs.
-        self.number_of_TBEs = 32
-        self.number_of_repl_TBEs = 32
-        self.number_of_snoop_TBEs = 1  # should not receive any snoop
-        self.number_of_DVM_TBEs = 1  # should not receive any dvm
-        self.number_of_DVM_snoop_TBEs = 1  # should not receive any dvm
-        self.unify_repl_TBEs = False
-
-        self.cbusy_generator = CBusy()
-        self.cbusy_tracker = CBusyTracker()

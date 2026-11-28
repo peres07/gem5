@@ -62,7 +62,7 @@ class Decoder : public InstDecoder
 
     uint32_t vlen;
     uint32_t elen;
-    bool _hasZcd;
+    bool _enableZcd;
     Addr jvtEntry;
 
     VTYPE vtype = (1ULL << 63); // vtype.vill = 1 at initial;

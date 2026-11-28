@@ -158,8 +158,8 @@ class Event
     mutable DynamicSensitivities dynamicSenseThread;
 };
 
-Events &topLevelEvents();
-Events &allEvents();
+extern Events topLevelEvents;
+extern Events allEvents;
 
 sc_core::sc_event *findEvent(const char *name);
 

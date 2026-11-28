@@ -102,7 +102,9 @@ cores = [
     for i in range(1)
 ]
 
-processor = BaseCPUProcessor(cores=cores, clk_freq="3GHz")
+processor = BaseCPUProcessor(
+    cores=cores,
+)
 
 motherboard = SimpleBoard(
     clk_freq="3GHz",

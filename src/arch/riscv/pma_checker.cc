@@ -82,7 +82,7 @@ PMAChecker::checkVAddrAlignment(
         return NoFault;
     }
 
-    // Ignore alignment check for instruction fetching
+    // Ingore alignment check for instruction fetching
     if (mode == BaseMMU::Execute) {
         return NoFault;
     }
@@ -133,7 +133,7 @@ PMAChecker::checkPAddrAlignment(
     const RequestPtr &req, BaseMMU::Mode mode, Addr vaddr)
 {
     Addr paddr = 0;
-    // Ignore alignment check for instruction fetching
+    // Ingore alignment check for instruction fetching
     if (mode == BaseMMU::Execute) {
         return NoFault;
     }

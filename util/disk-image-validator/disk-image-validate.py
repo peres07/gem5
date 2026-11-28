@@ -128,15 +128,10 @@ board.set_workload(
 simulator = Simulator(board=board)
 
 exit_order = []
-from gem5.simulate.exit_handler import (
-    ExitHandler,
-    ExitHypercall,
-)
+from gem5.simulate.exit_handler import ExitHandler
 
 
-class KernelBootedDumpReset(
-    ExitHandler, hypercall=ExitHypercall.KERNEL_BOOTED
-):
+class KernelBootedDumpReset(ExitHandler, hypercall_num=1):
     def _process(self, simulator: "Simulator") -> None:
         print("Dumping and resetting stats after kernel boot! Hypercall 1")
         m5.stats.dump()
@@ -147,7 +142,7 @@ class KernelBootedDumpReset(
         return False
 
 
-class AfterBootDumpReset(ExitHandler, hypercall=ExitHypercall.AFTER_BOOT):
+class AfterBootDumpReset(ExitHandler, hypercall_num=2):
     def _process(self, simulator: "Simulator") -> None:
         print("Dumping and resetting stats after Ubuntu boot! Hypercall 2")
         m5.stats.dump()
@@ -158,9 +153,7 @@ class AfterBootDumpReset(ExitHandler, hypercall=ExitHypercall.AFTER_BOOT):
         return False
 
 
-class AfterBootScriptDumpReset(
-    ExitHandler, hypercall=ExitHypercall.AFTER_BOOT_SCRIPT
-):
+class AfterBootScriptDumpReset(ExitHandler, hypercall_num=3):
     def _process(self, simulator: "Simulator") -> None:
         print(
             "Dumping and resetting stats before exiting simulation! Hypercall 3"
@@ -173,7 +166,7 @@ class AfterBootScriptDumpReset(
         return True
 
 
-class WorkBeginDumpReset(ExitHandler, hypercall=ExitHypercall.WORK_BEGIN):
+class WorkBeginDumpReset(ExitHandler, hypercall_num=4):
     def _process(self, simulator: "Simulator") -> None:
         m5.stats.dump()
         m5.stats.reset()
@@ -184,7 +177,7 @@ class WorkBeginDumpReset(ExitHandler, hypercall=ExitHypercall.WORK_BEGIN):
         return False
 
 
-class WorkEndDumpReset(ExitHandler, hypercall=ExitHypercall.WORK_END):
+class WorkEndDumpReset(ExitHandler, hypercall_num=5):
     def _process(self, simulator: "Simulator") -> None:
         print("Dumping and resetting stats at ROI end! Hypercall 5")
         m5.stats.dump()

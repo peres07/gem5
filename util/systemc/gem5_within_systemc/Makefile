@@ -40,9 +40,8 @@ SYSTEMC_INC = /opt/systemc/include
 SYSTEMC_LIB = /opt/systemc/lib-linux64
 
 CXXFLAGS = -I../../../build/$(ARCH) -L../../../build/$(ARCH) -I../../../ext/
-CXXFLAGS += -I../../../include/
 CXXFLAGS += -I$(SYSTEMC_INC) -L$(SYSTEMC_LIB)
-CXXFLAGS += -std=c++20
+CXXFLAGS += -std=c++17
 CXXFLAGS += -g -DTRACING_ON
 LIBS = -lgem5_$(VARIANT) -lsystemc -lpng
 

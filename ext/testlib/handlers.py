@@ -31,7 +31,6 @@ Handlers for the testlib Log.
 
 
 """
-
 import multiprocessing
 import os
 import sys

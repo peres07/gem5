@@ -37,8 +37,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects import (
-    CBusy,
-    CBusyTracker,
     ClockDomain,
     RubyCache,
     RubyNetwork,
@@ -49,7 +47,7 @@ from m5.params import (
 
 from .....isas import ISA
 from ....processors.abstract_core import AbstractCore
-from .abstract_node import CacheController
+from .abstract_node import AbstractNode
 
 
 class L2Cache(RubyCache):
@@ -58,7 +56,7 @@ class L2Cache(RubyCache):
     tagAccessLatency = 2
 
 
-class L2CacheController(CacheController):
+class L2CacheController(AbstractNode):
     """
     Strictly inclusive MOESI L2 controller.
     Strictly inclusive:
@@ -87,8 +85,6 @@ class L2CacheController(CacheController):
         self.send_evictions = False
         self.use_prefetcher = False
         self.prefetcher = NULL
-        self.cbusy_generator = CBusy()
-        self.cbusy_tracker = CBusyTracker()
 
         # Only applies to home nodes
         self.is_HN = False

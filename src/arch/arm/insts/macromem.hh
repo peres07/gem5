@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014, 2025 Arm Limited
+ * Copyright (c) 2010-2014 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -148,7 +148,7 @@ class MicroNeonMemOp : public MicroOp
   protected:
     RegIndex dest, ura;
     uint32_t imm;
-    Request::Flags memAccessFlags;
+    unsigned memAccessFlags;
 
     MicroNeonMemOp(const char *mnem, ExtMachInst machInst, OpClass __opClass,
                    RegIndex _dest, RegIndex _ura, uint32_t _imm)
@@ -422,7 +422,7 @@ class MicroMemOp : public MicroIntImmOp
 {
   protected:
     bool up;
-    Request::Flags memAccessFlags;
+    unsigned memAccessFlags;
 
     MicroMemOp(const char *mnem, ExtMachInst machInst, OpClass __opClass,
                RegIndex _ura, RegIndex _urb, bool _up, uint8_t _imm)
@@ -441,7 +441,7 @@ class MicroMemPairOp : public MicroOp
     RegIndex dest, dest2, urb;
     bool up;
     int32_t imm;
-    Request::Flags memAccessFlags;
+    unsigned memAccessFlags;
 
     MicroMemPairOp(const char *mnem, ExtMachInst machInst, OpClass __opClass,
             RegIndex _dreg1, RegIndex _dreg2, RegIndex _base,
@@ -485,29 +485,12 @@ class PairMemOp : public PredMacroOp
     RegIndex rn, rt, rt2;
     int32_t imm;
     PairMemOp(const char *mnem, ExtMachInst machInst, OpClass __opClass,
-              int64_t imm, AddrMode mode, RegIndex rn, RegIndex rt,
-              RegIndex rt2);
+              uint32_t size, bool fp, bool load, bool noAlloc, bool signExt,
+              bool exclusive, bool acrel, int64_t imm, AddrMode mode,
+              RegIndex rn, RegIndex rt, RegIndex rt2);
 
     std::string generateDisassembly(
             Addr pc, const loader::SymbolTable *symtab) const override;
-};
-
-class LoadPairOp : public PairMemOp
-{
-  protected:
-    LoadPairOp(const char *mnem, ExtMachInst machInst, OpClass __opClass,
-               uint32_t size, bool fp, bool noAlloc, bool signExt,
-               bool exclusive, bool acrel, int64_t imm, AddrMode mode,
-               RegIndex rn, RegIndex rt, RegIndex rt2);
-};
-
-class StorePairOp : public PairMemOp
-{
-  protected:
-    StorePairOp(const char *mnem, ExtMachInst machInst, OpClass __opClass,
-                uint32_t size, bool fp, bool noAlloc, bool signExt,
-                bool exclusive, bool acrel, int64_t imm, AddrMode mode,
-                RegIndex rn, RegIndex rt, RegIndex rt2);
 };
 
 class BigFpMemImmOp : public PredMacroOp

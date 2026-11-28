@@ -40,7 +40,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "base/logging.hh"
 #include "base/trace.hh"
 #include "debug/QOS.hh"
 #include "mem/request.hh"
@@ -65,29 +64,21 @@ FixedPriorityPolicy::~FixedPriorityPolicy()
 void
 FixedPriorityPolicy::init()
 {
-    fatal_if(pendingRequestors.empty(),
-             "%s: use setRequestorPriority to init requestors/priorities\n",
-             name());
-
-    // Resolvable only now that every requestor has registered with the
-    // system. priorityMap is a std::map, so a requestor configured twice
-    // keeps the priority inserted first.
-    for (const auto &[id, priority] : resolvePending(pendingRequestors)) {
-        priorityMap.insert({id, priority});
-    }
 }
 
 void
 FixedPriorityPolicy::initRequestorName(std::string requestor, uint8_t priority)
 {
-    pendingRequestors.push_back({requestor, nullptr, priority});
+    priorityMap.insert(
+        this->pair<std::string, uint8_t>(requestor, priority));
 }
 
 void
 FixedPriorityPolicy::initRequestorObj(const SimObject* requestor,
                                    uint8_t priority)
 {
-    pendingRequestors.push_back({"", requestor, priority});
+    priorityMap.insert(
+        this->pair<const SimObject*, uint8_t>(requestor, priority));
 }
 
 uint8_t

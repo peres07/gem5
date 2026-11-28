@@ -174,7 +174,7 @@ GarnetSyntheticTraffic::tick()
 
     // Schedule wakeup
     if (curTick() >= simCycles)
-        exitSimulationLoopClassic("Network Tester completed simCycles");
+        exitSimLoop("Network Tester completed simCycles");
     else {
         if (!tickEvent.scheduled())
             schedule(tickEvent, clockEdge(Cycles(1)));

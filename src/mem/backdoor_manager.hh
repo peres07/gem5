@@ -39,7 +39,6 @@
 #define __MEM_BACKDOOR_MANAGER_HH__
 
 #include <list>
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -61,13 +60,6 @@ class BackdoorManager
 
     MemBackdoorPtr getRevertedBackdoor(MemBackdoorPtr backdoor,
                                        const AddrRange &pkt_range);
-    /**
-     * Invalidate and clear all managed reverted backdoors, then update the
-     * original/remapped address ranges. Map entries/callback registrations are
-     * kept.
-     */
-    void updateAddrRange(const std::vector<AddrRange> &original_ranges,
-                         const std::vector<AddrRange> &remapped_ranges);
 
   protected:
     /**
@@ -83,15 +75,14 @@ class BackdoorManager
      */
     MemBackdoorPtr findBackdoor(const AddrRange &pkt_range) const;
 
-    std::vector<AddrRange> originalRanges;
-    std::vector<AddrRange> remappedRanges;
+    const std::vector<AddrRange> &originalRanges;
+    const std::vector<AddrRange> &remappedRanges;
 
     /**
      * In this vector, each entry contains a list of backdoors that in the
      * range in original address view.
      */
-    std::map<const MemBackdoor *, std::list<std::unique_ptr<MemBackdoor>>>
-        backdoorMap;
+    std::vector<std::list<std::unique_ptr<MemBackdoor>>> backdoorLists;
 };
 }  // namespace gem5
 

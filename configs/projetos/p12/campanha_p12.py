@@ -6,7 +6,6 @@
 import argparse
 import json
 from concurrent.futures import ThreadPoolExecutor
-from statistics import mean
 
 from extrai_p12 import escreve_csv
 from fluxo_p12 import (
@@ -33,14 +32,9 @@ MAPAS = (
     ("aleatorio", 3),
 )
 PERTURBACOES = (11, 12, 13)
-MAPAS_PYTHON = MAPAS[:2] + tuple(
-    ("aleatorio", s) for s in (11, 22, 33, 44, 55)
-)
 
 
-def politicas(nucleos, python=False):
-    if python:
-        return MAPAS_PYTHON
+def politicas(nucleos):
     return MAPAS + (("otimo", 0),) if nucleos == 8 else MAPAS
 
 
@@ -48,7 +42,7 @@ def passada_perfis(pool, fluxo, casos, semente):
     def prepara(caso):
         prog, nucleos = caso
         perfil = fluxo.perfil(prog, nucleos, semente)
-        for politica, semente_mapa in politicas(nucleos, fluxo.m5ops is not None):
+        for politica, semente_mapa in politicas(nucleos):
             fluxo.mapeia(perfil, politica, semente_mapa, nucleos)
 
     list(pool.map(prepara, casos))
@@ -58,8 +52,12 @@ def mapas_prontos(fluxo, casos, semente):
     for prog, nucleos in casos:
         perfil = fluxo.perfil(prog, nucleos, semente, executar=False)
         assinatura = fluxo.assinatura_perfil(perfil)
-        for politica, semente_mapa in politicas(nucleos, fluxo.m5ops is not None):
-            mapa = fluxo.caminho_mapa(perfil, politica, semente_mapa, "flits")
+        for politica, semente_mapa in politicas(nucleos):
+            mapa = (
+                fluxo.saida
+                / "mapas"
+                / (f"{perfil.name}-{politica}-{semente_mapa}-flits.json")
+            )
             dados = json.loads(mapa.read_text())
             if (
                 dados["perfil_sha256"] != assinatura
@@ -75,14 +73,11 @@ def mapas_prontos(fluxo, casos, semente):
             yield prog, nucleos, mapa
 
 
-def passada_avaliacoes(pool, fluxo, mapas, semente_python=None):
-    sementes = (
-        PERTURBACOES if semente_python is None else (semente_python,)
-    )
-    tarefas = [(*caso, semente) for caso in mapas for semente in sementes]
+def passada_avaliacoes(pool, fluxo, mapas):
+    tarefas = [(*caso, semente) for caso in mapas for semente in PERTURBACOES]
 
     def avalia(tarefa):
-        return fluxo.avalia(*tarefa, confere_perfil=semente_python is not None)
+        return fluxo.avalia(*tarefa)
 
     return list(pool.map(avalia, tarefas))
 
@@ -92,12 +87,7 @@ def estabilidade(pool, fluxo, mapas, semente):
         prog, nucleos, mapa = caso
         dados = json.loads(mapa.read_text())
         pasta = fluxo.saida / "estabilidade" / f"{prog}-{nucleos}"
-        if fluxo.m5ops is not None:
-            pasta = fluxo.saida / "avaliacao" / mapa.stem / f"perturb-{semente}"
-        fluxo.roda(
-            pasta, prog, nucleos, semente, mapa,
-            executar=fluxo.m5ops is None,
-        )
+        fluxo.roda(pasta, prog, nucleos, semente, mapa)
         linear = le_perfil(dados["perfil"])
         guloso = le_perfil(pasta)
         if set(linear.nomes) != set(guloso.nomes):
@@ -119,12 +109,12 @@ def estabilidade(pool, fluxo, mapas, semente):
         }
 
     gulosos = [
-        caso for caso in mapas if json.loads(caso[2].read_text())["politica"] == "guloso"
+        caso for caso in mapas if caso[2].stem.endswith("-guloso-0-flits")
     ]
     return list(pool.map(compara, gulosos))
 
 
-def referencias(mapas, python=False):
+def referencias(mapas):
     """Compara mapas na mesma matriz do perfil (fixos nunca se movem)."""
     custos = {}
     perfis = {}
@@ -145,17 +135,17 @@ def referencias(mapas, python=False):
             "nucleos": n,
             "d_linear": valores["linear", 0],
             "d_guloso": valores["guloso", 0],
-            "d_aleatorio_media": mean(
-                custo for (politica, _), custo in valores.items()
-                if politica == "aleatorio"
-            ),
+            "d_aleatorio_media": sum(
+                valores["aleatorio", s] for s in (1, 2, 3)
+            )
+            / 3,
             "d_otimo": valores.get(("otimo", 0)),
             "d_serpentina": None,
             "d_hamiltoniano": None,
             "mesmo_guloso_msgs_flits": guloso_msgs["mapa"]
             == guloso_flits["mapa"],
         }
-        if prog == "vizinhanca" and n == 16 and not python:
+        if prog == "vizinhanca" and n == 16:
             p = le_perfil(perfil)
             base = linear(p, linhas, colunas)
             for nome, ordem in (
@@ -196,21 +186,18 @@ def main():
     fluxo = configura(ap, args)
     if args.jobs < 1:
         ap.error("--jobs deve ser positivo")
-    python = fluxo.m5ops is not None
-    if not python and args.semente_perfil in PERTURBACOES:
+    if args.semente_perfil in PERTURBACOES:
         ap.error("semente do perfil deve diferir das sementes de avaliacao")
     if args.estabilidade and args.fase == "perfis":
         ap.error("--estabilidade requer --fase avaliacoes ou todas")
-    nucleos = sorted(set(args.nucleos or ([16] if python else MALHAS)))
     casos = [
         (prog, n)
         for prog in PROGRAMAS
-        for n in nucleos
-        if not args.programa or prog in args.programa
+        for n in MALHAS
+        if (not args.programa or prog in args.programa)
+        and (not args.nucleos or n in args.nucleos)
     ]
-    n_avaliacoes = sum(len(politicas(n, python)) for _, n in casos)
-    if not python:
-        n_avaliacoes *= len(PERTURBACOES)
+    n_avaliacoes = sum(len(politicas(n)) for _, n in casos) * len(PERTURBACOES)
     print(f"{len(casos)} perfis; {n_avaliacoes} avaliacoes", flush=True)
     if args.listar:
         return
@@ -221,11 +208,9 @@ def main():
             if args.fase in ("avaliacoes", "todas"):
                 mapas = list(mapas_prontos(fluxo, casos, args.semente_perfil))
                 escreve_csv(
-                    fluxo.saida / "referencias.csv", list(referencias(mapas, python))
+                    fluxo.saida / "referencias.csv", list(referencias(mapas))
                 )
-                linhas = passada_avaliacoes(
-                    pool, fluxo, mapas, args.semente_perfil if python else None
-                )
+                linhas = passada_avaliacoes(pool, fluxo, mapas)
                 escreve_csv(fluxo.saida / "metricas.csv", linhas)
                 if args.estabilidade:
                     linhas = estabilidade(

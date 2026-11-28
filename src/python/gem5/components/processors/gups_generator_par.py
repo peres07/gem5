@@ -43,7 +43,7 @@ class GUPSGeneratorPAR(AbstractGenerator):
         start_addr: Addr,
         mem_size: str,
         update_limit: int = 0,
-        clk_freq: str | None = None,
+        clk_freq: Optional[str] = None,
     ):
         """The GUPSGeneratorPAR class
 

@@ -75,8 +75,7 @@ class SectorSubBlk : public CacheBlk
      * variables will remain the same, that is, an entry cannot change
      * its sector block nor its offset.
      */
-    SectorSubBlk &operator=(SectorSubBlk &&other);
-    CacheBlk &operator=(CacheBlk &&other) override;
+    SectorSubBlk& operator=(SectorSubBlk&& other) = default;
     ~SectorSubBlk() = default;
 
     /**

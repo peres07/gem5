@@ -269,7 +269,7 @@ mcrrMrrcIssBuild(bool isRead, uint32_t crm, RegIndex rt, RegIndex rt2,
 
 bool SPAlignmentCheckEnabled(ThreadContext *tc);
 
-Request::Flags addrAlignmentFlags(int memsize, Request::Flags flags);
+unsigned addrAlignmentFlags(int memsize, unsigned memAccessFlags);
 
 Addr truncPage(Addr addr);
 Addr roundPage(Addr addr);

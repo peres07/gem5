@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021,2026 Arm Limited
+ * Copyright (c) 2021 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -46,7 +46,6 @@
 #include <vector>
 
 #include "mem/ruby/network/Network.hh"
-#include "mem/ruby/network/RouteProfiler.hh"
 #include "params/SimpleNetwork.hh"
 
 namespace gem5
@@ -124,15 +123,6 @@ class SimpleNetwork : public Network
         std::vector<statistics::Formula *> m_msg_counts;
         std::vector<statistics::Formula *> m_msg_bytes;
     } networkStats;
-
-  public:
-    RouteProfiler routeProfiler;
-
-    void
-    dumpRoutes()
-    {
-        routeProfiler.dumpRoutes();
-    }
 };
 
 inline std::ostream&

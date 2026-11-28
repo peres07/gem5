@@ -102,7 +102,7 @@ static void
 dumpArgsFrom(std::ostream &os, [[maybe_unused]] ThreadContext *tc,
         typename ABI::State &state)
 {
-    [[maybe_unused]] int count = 0;
+    int count = 0;
     // Extract all the arguments from the thread context and print them,
     // prefixed with either a ( or a , as appropriate.
     GEM5_FOR_EACH_IN_PACK(os << (count++ ? ", " : "("),

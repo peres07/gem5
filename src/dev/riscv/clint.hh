@@ -136,14 +136,10 @@ class Clint : public BasicPioDevice
     } registers;
 
     using Register32 = ClintRegisters::Register32;
-    using Register64 = ClintRegisters::Register64;
 
     void writeMSIP(Register32& reg, const uint32_t& data, const int thread_id);
-    void writeMTIMECMP(Register64 &reg, const uint64_t &data,
-                       const int thread_id);
-    void writeMTIME(Register64 &reg, const uint64_t &data);
 
-    // External API
+  // External API
   public:
     /**
      * PioDevice interface functions
@@ -165,12 +161,7 @@ class Clint : public BasicPioDevice
      */
     void updateMSIP(const int thread_id);
 
-    /**
-     * Timer Interrupt
-     */
-    void updateMTIP(const int thread_id);
-
-    // CLINT reset
+  // CLINT reset
   public:
     void doReset();
 

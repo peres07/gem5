@@ -57,7 +57,6 @@ from gem5.isas import ISA
 from gem5.resources.resource import obtain_resource
 from gem5.simulate.exit_handler import (
     ExitHandler,
-    ExitHypercall,
     KernelBootedExitHandler,
 )
 from gem5.simulate.simulator import Simulator
@@ -73,9 +72,7 @@ memory = DualChannelDDR4_2400(size="2GiB")
 
 # Here we set up the processor. We use a simple processor with TIMING cores.
 # This config script was also tested with ATOMIC cores.
-processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, num_cores=2, isa=ISA.ARM, clk_freq="3GHz"
-)
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=2, isa=ISA.ARM)
 
 # The ArmBoard requires a `release` to be specified. This adds all the
 # extensions or features to the system. We are setting this to Armv8
@@ -108,7 +105,7 @@ board.set_workload(workload)
 # want to modify/override their default behaviors.
 
 # You can inherit from either the class that handles a certain hypercall by
-# default, or inherit directly from ExitHandler and specify an ExitHypercall.
+# default, or inherit directly from ExitHandler and specify a hypercall number.
 # See src/python/gem5/simulate/exit_handler.py for more information on which
 # handlers map to which hypercalls, and what the default behaviors are.
 
@@ -123,9 +120,7 @@ class CustomKernelBootedExitHandler(KernelBootedExitHandler):
         return False
 
 
-class CustomAfterBootExitHandler(
-    ExitHandler, hypercall=ExitHypercall.AFTER_BOOT
-):
+class CustomAfterBootExitHandler(ExitHandler, hypercall_num=2):
     @overrides(ExitHandler)
     def _process(self, simulator: "Simulator") -> None:
         print("Second exit: Started `after_boot.sh` script")
@@ -135,9 +130,7 @@ class CustomAfterBootExitHandler(
         return False
 
 
-class AfterBootScriptExitHandler(
-    ExitHandler, hypercall=ExitHypercall.AFTER_BOOT_SCRIPT
-):
+class AfterBootScriptExitHandler(ExitHandler, hypercall_num=3):
     @overrides(ExitHandler)
     def _process(self, simulator: "Simulator") -> None:
         print(f"Third exit: {self.get_handler_description()}")

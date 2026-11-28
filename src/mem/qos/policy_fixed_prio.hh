@@ -40,8 +40,6 @@
 
 #include <cstdint>
 #include <map>
-#include <string>
-#include <vector>
 
 #include "base/compiler.hh"
 #include "mem/qos/policy.hh"
@@ -78,8 +76,6 @@ class FixedPriorityPolicy : public Policy
      * the requestor's name and priority value.
      * The requestor's name has to match a name in the system.
      *
-     * The requestor is only resolved to a RequestorID in init().
-     *
      * @param requestor requestor's name to lookup.
      * @param priority priority value for the requestor
      */
@@ -88,8 +84,6 @@ class FixedPriorityPolicy : public Policy
     /**
      * Initialize the fixed requestor's priority by providing
      * the requestor's SimObject pointer and priority value.
-     *
-     * The requestor is only resolved to a RequestorID in init().
      *
      * @param requestor requestor's SimObject pointer to lookup.
      * @param priority priority value for the requestor
@@ -114,9 +108,6 @@ class FixedPriorityPolicy : public Policy
      * a fixed QoS priority value
      */
     std::map<RequestorID, uint8_t> priorityMap;
-
-    /** Requestors in configuration order, resolved in init() */
-    std::vector<PendingRequestor<uint8_t>> pendingRequestors;
 };
 
 } // namespace qos

@@ -71,8 +71,7 @@ PanicOrOopsEvent::process(ThreadContext *tc)
     }
 
     if (behaviour == KernelPanicOopsBehaviour::DumpDmesgAndExit) {
-        exitSimulationLoopClassic(descr(), static_cast<int>(1), curTick(),
-                                  false);
+        exitSimLoop(descr(), static_cast<int>(1), curTick(), false);
     } else if (behaviour == KernelPanicOopsBehaviour::DumpDmesgAndPanic) {
         panic(descr());
     }

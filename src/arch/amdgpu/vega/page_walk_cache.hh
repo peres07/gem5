@@ -29,6 +29,7 @@
 #ifndef __ARCH_AMDGPU_VEGA_PAGE_WALK_CACHE_HH__
 #define __ARCH_AMDGPU_VEGA_PAGE_WALK_CACHE_HH__
 
+
 #include "arch/amdgpu/vega/pagetable.hh"
 #include "base/cache/associative_cache.hh"
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
@@ -37,6 +38,7 @@
 
 namespace gem5
 {
+
 
 namespace VegaISA
 {
@@ -62,14 +64,8 @@ struct PWCEntry : public ReplaceableEntry
         valid = false;
     }
 
-    void
-    insert(const KeyType &key)
-    {}
-    bool
-    isValid() const
-    {
-        return valid;
-    }
+    void insert(const KeyType &key) {}
+    bool isValid() const { return valid; }
 
     bool
     match(const KeyType &key) const
@@ -87,8 +83,7 @@ struct PWCEntry : public ReplaceableEntry
 class VegaPWCIndexingPolicy : public BaseIndexingPolicy
 {
   protected:
-    virtual uint32_t
-    extractSet(const Addr addr) const
+    virtual uint32_t extractSet(const Addr addr) const
     {
         // Extract the set bits from the address
         return (addr >> setShift) & setMask;
@@ -104,24 +99,23 @@ class VegaPWCIndexingPolicy : public BaseIndexingPolicy
      * Construct and initialize this policy.
      * Assume that all PTEs are 8 bytes so the set shift is 3 bits.
      */
-    VegaPWCIndexingPolicy(const Params &p)
-        : BaseIndexingPolicy(p, p.entries, 3)
+    VegaPWCIndexingPolicy(const Params &p) :
+        BaseIndexingPolicy(p, p.entries, 3)
     {}
 
     /**
      * Destructor.
      */
-    ~VegaPWCIndexingPolicy(){};
+    ~VegaPWCIndexingPolicy() {};
 
-    std::vector<ReplaceableEntry *>
-    getPossibleEntries(const Addr &addr) const override
+    std::vector<ReplaceableEntry*> getPossibleEntries(const Addr &addr) const
+                                                                     override
     {
         return sets[extractSet(addr)];
     }
 
-    Addr
-    regenerateAddr(const Addr &tag,
-                   const ReplaceableEntry *entry) const override
+    Addr regenerateAddr(const Addr &tag,
+                        const ReplaceableEntry* entry) const override
     {
         panic("PWCSetAssociative::regenerateAddr() not implemented");
         return 0;
@@ -135,27 +129,22 @@ class PageWalkCache : public AssociativeCache<PWCEntry>
     using AssociativeCache<PWCEntry>::AssociativeCache;
     using AssociativeCache<PWCEntry>::accessEntry;
 
-    PWCEntry *
-    accessEntry(const KeyType &key) override
+    PWCEntry* accessEntry(const KeyType &key) override
     {
         auto entry = findEntry(key);
         accessEntry(entry);
         return entry;
     }
-    PWCEntry *
-    findEntry(const KeyType &key) const override
+    PWCEntry* findEntry(const KeyType &key) const override
     {
         for (auto candidate : indexingPolicy->getPossibleEntries(key)) {
-            auto entry = static_cast<PWCEntry *>(candidate);
-            if (entry->match(key)) {
-                return entry;
-            }
+        auto entry = static_cast<PWCEntry*>(candidate);
+        if (entry->match(key))
+            return entry;
         }
         return nullptr;
     }
-    void
-    insert(const KeyType &key, const PageTableEntry &pte_entry)
-    {
+    void insert(const KeyType &key, const PageTableEntry &pte_entry) {
         PWCEntry *vict = findVictim(key);
         vict->pteEntry = pte_entry;
         vict->paddr = key;

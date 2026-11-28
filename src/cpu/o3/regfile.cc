@@ -40,7 +40,7 @@
  */
 
 #include "cpu/o3/regfile.hh"
-#include "cpu/o3/cpu.hh"
+
 #include "cpu/o3/free_list.hh"
 
 namespace gem5
@@ -49,15 +49,14 @@ namespace gem5
 namespace o3
 {
 
-PhysRegFile::PhysRegFile(CPU *_cpu, unsigned _numPhysicalIntRegs,
+PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
                          unsigned _numPhysicalFloatRegs,
                          unsigned _numPhysicalVecRegs,
                          unsigned _numPhysicalVecPredRegs,
                          unsigned _numPhysicalMatRegs,
                          unsigned _numPhysicalCCRegs,
                          const BaseISA::RegClasses &reg_classes)
-    : cpu(_cpu),
-      intRegFile(*reg_classes.at(IntRegClass), _numPhysicalIntRegs),
+    : intRegFile(*reg_classes.at(IntRegClass), _numPhysicalIntRegs),
       floatRegFile(*reg_classes.at(FloatRegClass), _numPhysicalFloatRegs),
       vectorRegFile(*reg_classes.at(VecRegClass), _numPhysicalVecRegs),
       vectorElemRegFile(*reg_classes.at(VecElemClass),
@@ -141,11 +140,6 @@ PhysRegFile::PhysRegFile(CPU *_cpu, unsigned _numPhysicalIntRegs,
     }
 }
 
-std::string
-PhysRegFile::name() const
-{
-    return cpu->name() + ".regfile";
-}
 
 void
 PhysRegFile::initFreeList(UnifiedFreeList *freeList)

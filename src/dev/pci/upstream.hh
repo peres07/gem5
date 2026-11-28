@@ -48,6 +48,8 @@
 #include "dev/pci/types.hh"
 #include "dev/pci/up_down_bridge.hh"
 #include "params/PciConfigError.hh"
+#include "params/PciUpstream.hh"
+#include "sim/clocked_object.hh"
 
 namespace gem5
 {
@@ -62,8 +64,6 @@ class PciConfigError : public IsaFake
     PciConfigError(const Params &p);
 
     void setAddrRange(AddrRange range);
-
-    AddrRangeList getAddrRanges() const override;
 };
 
 /**
@@ -79,41 +79,23 @@ class PciConfigError : public IsaFake
  *         prefetchable memory) to physical memory.
  * </ol>
  *
- * PCI devices directly downstream will receive a PciUpstream::DeviceInterface
- * that provides for common functionality such as interrupt delivery and memory
- * mapping.
+ * PCI devices need to register themselves with a PCI upstream using the
+ * PciUpstream::registerDevice() call. This call returns a
+ * PciUpstream::DeviceInterface that provides for common functionality
+ * such as interrupt delivery and memory mapping.
  *
  * The PciUpstream is an abstract class that provides the device registering
  * part and should be inherited by the actual upstream classes, which must
  * provides implementation for the interrupts and memory mapping.
- *
- * It can be double inherited with a SimObject to implement an actual objects.
- * In that case, like shown in the following example, the declaration "using
- * SimObject::name;" must be added in the derived class to avoid any ambiguity
- * of name(). (SimObject must be replaced by the actual class name of the
- * simulation object)
- *
- *   class Example : public SimObject, public PciUpstream
- *   {
- *     public:
- *       using SimObject::name;
- *   };
  */
-class PciUpstream
+class PciUpstream : public ClockedObject
 {
   public:
-    PciUpstream(PciUpDownBridge *up_to_down, PciConfigError *config_error_dev,
-                const std::vector<PciDevice *> &pci_devices,
-                std::string upstream_name);
-    virtual ~PciUpstream() = default;
+    PARAMS(PciUpstream);
 
-    void init();
+    PciUpstream(const Params &p);
 
-    /**
-     * Get name of the upstream. Used to print correct object name with
-     * DPRINTF.
-     */
-    std::string name() const;
+    void init() override;
 
     /**
      * @{
@@ -123,8 +105,8 @@ class PciUpstream
     /**
      * Callback interface from PCI devices to the upstream.
      *
-     * Devices get an instance of this object during PciUpstream
-     * initialization.
+     * Devices get an instance of this object by calling
+     * PciUpstream::registerDevice() on their direct upstream.
      */
     class DeviceInterface
     {
@@ -135,9 +117,11 @@ class PciUpstream
          * Instantiate a device interface
          *
          * @param upstream PCI upstream that this device belongs to.
-         * @param device The device associated with the interface
+         * @param dev_addr The device's position on the PCI bus
+         * @param pin Interrupt pin
          */
-        DeviceInterface(PciUpstream &upstream, PciDevice &device);
+        DeviceInterface(PciUpstream &upstream, const PciDevAddr &dev_addr,
+                        PciIntPin pin);
 
       public:
         DeviceInterface() = delete;
@@ -146,23 +130,9 @@ class PciUpstream
         const std::string name() const;
 
         /**
-         * Get the PCI bus number of the upstream bridge.
-         */
-        PciBusNum getBusNum() const;
-
-        /**
          * Post a PCI interrupt to the CPU.
          */
         void postInt();
-
-        /**
-         * Post a PCI interrupt to the CPU.
-         * This function should be used by bridges to post interrupts
-         * from devices downstream of them.
-         *
-         * @param device PCI device posting the interrupts.
-         */
-        void postInt(const PciDevice &device);
 
         /**
          * Clear a posted PCI interrupt
@@ -170,31 +140,16 @@ class PciUpstream
         void clearInt();
 
         /**
-         * Clear a posted PCI interrupt.
-         * This function should be used by bridges to clear interrupts
-         * from devices downstream of them.
-         *
-         * @param device PCI device posting the interrupts.
-         */
-        void clearInt(const PciDevice &device);
-
-        /**
          * Calculate the physical address range of the PCI device
          * configuration space.
          *
          * @return Address range in the system's physical address space.
          */
-        AddrRange configRange() const;
-
-        /**
-         * Calculate the physical address range of the PCI device
-         * configuration space. This function should be used by bridges to get
-         * ranges from devices downstream of them.
-         *
-         * @param device PCI device requesting configuration range.
-         * @return Address range in the system's physical address space.
-         */
-        AddrRange configRange(const PciDevice &device) const;
+        AddrRange
+        configRange() const
+        {
+            return upstream.interfaceConfigRange(devAddr);
+        }
 
         /**
          * Calculate the physical address of an IO location on the PCI
@@ -203,18 +158,11 @@ class PciUpstream
          * @param addr Address in the PCI IO address space
          * @return Address in the system's physical address space.
          */
-        Addr pioAddr(Addr addr) const;
-
-        /**
-         * Calculate the physical address of an IO location on the PCI
-         * bus. This function should be used by bridges to get address
-         * from devices downstream of them.
-         *
-         * @param device PCI device requesting PIO addr.
-         * @param addr Address in the PCI IO address space
-         * @return Address in the system's physical address space.
-         */
-        Addr pioAddr(const PciDevice &device, Addr addr) const;
+        Addr
+        pioAddr(Addr addr) const
+        {
+            return upstream.interfacePioAddr(devAddr, addr);
+        }
 
         /**
          * Calculate the physical address of a non-prefetchable memory
@@ -223,18 +171,11 @@ class PciUpstream
          * @param addr Address in the PCI memory address space
          * @return Address in the system's physical address space.
          */
-        Addr memAddr(Addr addr) const;
-
-        /**
-         * Calculate the physical address of a non-prefetchable memory
-         * location in the PCI address space. This function should be used by
-         * bridge to get address from devices downstream of them.
-         *
-         * @param device PCI device requesting memory address translation.
-         * @param addr Address in the PCI memory address space
-         * @return Address in the system's physical address space.
-         */
-        Addr memAddr(const PciDevice &device, Addr addr) const;
+        Addr
+        memAddr(Addr addr) const
+        {
+            return upstream.interfaceMemAddr(devAddr, addr);
+        }
 
         /**
          * Calculate the physical address of a prefetchable memory
@@ -243,33 +184,29 @@ class PciUpstream
          * @param addr Address in the PCI DMA memory address space
          * @return Address in the system's physical address space.
          */
-        Addr dmaAddr(Addr addr) const;
-
-        /**
-         * Calculate the physical address of a prefetchable memory
-         * location in the PCI address space. This function should be used by
-         * bridge to get address from devices downstream of them.
-         *
-         * @param device PCI device request DMA address.
-         * @param addr Address in the PCI DMA memory address space
-         * @return Address in the system's physical address space.
-         */
-        Addr dmaAddr(const PciDevice &device, Addr addr) const;
-
-        /**
-         * Calculate the physical address range of the PCI configuration space
-         * for a range of buses.
-         *
-         * @param start_bus First bus of the range to get
-         * @param end_bus Last bus of the range to get, included
-         * @return Address range in the system's physical address space.
-         */
-        AddrRange busConfigRange(PciBusNum start_bus, PciBusNum end_bus) const;
+        Addr
+        dmaAddr(Addr addr) const
+        {
+            return upstream.interfaceDmaAddr(devAddr, addr);
+        }
 
       protected:
         PciUpstream &upstream;
-        PciDevice &device;
+
+        const PciDevAddr devAddr;
+        const PciIntPin interruptPin;
     };
+
+    /**
+     * Register a PCI device with the host.
+     *
+     * @param device Device to register
+     * @param dev_addr The device's position on the PCI bus
+     * @param pin Interrupt pin
+     * @return A device-specific DeviceInterface instance.
+     */
+    virtual DeviceInterface registerDevice(PciDevice *device,
+                                           PciDevAddr dev_addr, PciIntPin pin);
 
     /** @} */
 
@@ -295,71 +232,64 @@ class PciUpstream
     /**
      * Post an interrupt to the CPU.
      *
-     * @param device The requesting PCI device
+     * @param dev_addr The device's position on the PCI bus
+     * @param pin PCI interrupt pin
      */
-    virtual void interfacePostInt(const PciDevice &device) = 0;
+    virtual void interfacePostInt(const PciDevAddr &dev_addr,
+                                  PciIntPin pin) = 0;
 
     /**
-     * Clear an interrupt to the CPU.
+     * Post an interrupt to the CPU.
      *
-     * @param device The requesting PCI device
+     * @param dev_addr The device's position on the PCI bus
+     * @param pin PCI interrupt pin
      */
-    virtual void interfaceClearInt(const PciDevice &device) = 0;
+    virtual void interfaceClearInt(const PciDevAddr &dev_addr,
+                                   PciIntPin pin) = 0;
 
     /**
      * Calculate the physical address range of the PCI device
      * configuration space.
      *
-     * @param device The requesting PCI device
+     * @param dev_addr The device's position on the PCI bus
      * @return Configuration address range in the system's physical address
      *         space.
      */
-    virtual AddrRange interfaceConfigRange(const PciDevice &device) const = 0;
+    virtual AddrRange
+    interfaceConfigRange(const PciDevAddr &dev_addr) const = 0;
 
     /**
      * Calculate the physical address of an IO location on the PCI
      * bus.
      *
-     * @param device The requesting PCI device
+     * @param dev_addr The device's position on the PCI bus
      * @param pci_addr Address in the PCI IO address space
      * @return Address in the system's physical address space.
      */
-    virtual Addr interfacePioAddr(const PciDevice &device,
+    virtual Addr interfacePioAddr(const PciDevAddr &dev_addr,
                                   Addr pci_addr) const = 0;
 
     /**
      * Calculate the physical address of a non-prefetchable memory
      * location in the PCI address space.
      *
-     * @param device The requesting PCI device
+     * @param dev_addr The device's position on the PCI bus
      * @param pci_addr Address in the PCI memory address space
      * @return Address in the system's physical address space.
      */
-    virtual Addr interfaceMemAddr(const PciDevice &device,
+    virtual Addr interfaceMemAddr(const PciDevAddr &dev_addr,
                                   Addr pci_addr) const = 0;
 
     /**
      * Calculate the physical address of a prefetchable memory
      * location in the PCI address space.
      *
-     * @param device The requesting PCI device
+     * @param dev_addr The device's position on the PCI bus
      * @param pci_addr Address in the PCI DMA memory address space
      * @return Address in the system's physical address space.
      */
-    virtual Addr interfaceDmaAddr(const PciDevice &device,
+    virtual Addr interfaceDmaAddr(const PciDevAddr &dev_addr,
                                   Addr pci_addr) const = 0;
-
-    /**
-     * Get the range for the configuration memory space for which a downstream
-     * PCI bridge is responsible for.
-     *
-     * @param start_bus First bus for which the bridge is responsible
-     * (secondary bus number)
-     * @param end_bus Last bus for which the bridge is responsible, included
-     * (subordinate bus number)
-     */
-    virtual AddrRange interfaceBusConfigRange(PciBusNum start_bus,
-                                              PciBusNum end_bus) const = 0;
 
     /** @} */
 
@@ -393,8 +323,6 @@ class PciUpstream
     PciUpDownBridge *upToDown;
 
     PciConfigError *configErrorDevice;
-
-    std::string upstreamName;
 };
 
 } // namespace gem5

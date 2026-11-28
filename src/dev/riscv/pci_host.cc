@@ -36,8 +36,6 @@
  */
 
 #include "dev/riscv/pci_host.hh"
-
-#include "dev/pci/device.hh"
 #include "params/GenericRiscvPciHost.hh"
 
 namespace gem5
@@ -49,11 +47,9 @@ GenericRiscvPciHost::GenericRiscvPciHost(const GenericRiscvPciHostParams &p)
 }
 
 uint32_t
-GenericRiscvPciHost::mapPciInterrupt(const PciDevice &device) const
+GenericRiscvPciHost::mapPciInterrupt(const PciDevAddr &addr,
+                                     PciIntPin pin) const
 {
-    PciIntPin pin = device.interruptPin();
-    PciDevAddr addr = device.devAddr();
-
     fatal_if(pin == PciIntPin::NO_INT,
              "%02x:%02x.%i: Interrupt from a device without interrupts\n",
              getBusNum(), addr.dev, addr.func);

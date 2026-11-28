@@ -86,25 +86,18 @@ def do_comp_ack(transaction):
     return False
 
 
-def init(board):
-    pass
-
-
-def test_all(generators):
-    generator = generators[0]
+def test_all(generator):
     payload = payload_gen()
     phase = phase_gen()
 
-    tran = generator.inject(payload, phase)
-    tran.ASSERT(channel_check)
-    tran.ASSERT(opcode_check)
-    tran.ASSERT(cacheline_check)
-    tran.ASSERT(data_id_check_gen(0))
+    tran = generator.inject(payload, phase, when=10)
+    tran.EXPECT(channel_check)
+    tran.EXPECT(opcode_check)
+    tran.EXPECT(cacheline_check)
+    tran.EXPECT(data_id_check_gen(0))
     tran.DO_WAIT(wait_data)
-    tran.ASSERT(channel_check)
-    tran.ASSERT(opcode_check)
-    tran.ASSERT(cacheline_check)
-    tran.ASSERT(data_id_check_gen(2))
+    tran.EXPECT(channel_check)
+    tran.EXPECT(opcode_check)
+    tran.EXPECT(cacheline_check)
+    tran.EXPECT(data_id_check_gen(2))
     tran.DO(do_comp_ack)
-
-    yield lambda *args: None

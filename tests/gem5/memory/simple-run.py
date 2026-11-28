@@ -41,8 +41,7 @@ from m5.objects import *
 parser = argparse.ArgumentParser(description="Simple memory tester")
 parser.add_argument("--bandwidth", default=None)
 parser.add_argument("--latency", default=None)
-parser.add_argument("--latency_dist", default=None)
-parser.add_argument("--latency_dist_param", default=None)
+parser.add_argument("--latency_var", default=None)
 
 args = parser.parse_args()
 
@@ -63,10 +62,8 @@ class MyMem(SimpleMemory):
         bandwidth = args.bandwidth
     if args.latency:
         latency = args.latency
-    if args.latency_dist:
-        latency_dist = args.latency_dist
-    if args.latency_dist_param:
-        latency_dist_param = args.latency_dist_param
+    if args.latency_var:
+        latency_var = args.latency_var
 
 
 # system simulated

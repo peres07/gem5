@@ -46,12 +46,7 @@ Module *_new_module;
 
 } // anonymous namespace
 
-UniqueNameGen &
-globalNameGen()
-{
-    static UniqueNameGen globalNameGen;
-    return globalNameGen;
-};
+UniqueNameGen globalNameGen;
 
 Module::Module(const char *name) :
     _name(name), _sc_mod(nullptr), _obj(nullptr), _ended(false),

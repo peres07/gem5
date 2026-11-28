@@ -228,7 +228,7 @@ LooppointAnalysisManager::countBackwardBranch(const Addr pc)
                 globalInstCounter);
         DPRINTF(LooppointAnalysis, "regionLength = %lu\n",
                 regionLength);
-        exitSimulationLoopClassicNow("simpoint starting point found");
+        exitSimLoopNow("simpoint starting point found");
     }
 }
 

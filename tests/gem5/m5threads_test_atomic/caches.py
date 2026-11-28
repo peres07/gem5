@@ -48,7 +48,7 @@ from m5.util.convert import toMemorySize
 # For all options see src/mem/cache/BaseCache.py
 
 
-class L1Cache(Cache):
+class L1Cache(PrefetchCache):
     """Simple L1 Cache with default values"""
 
     assoc = 8
@@ -58,6 +58,10 @@ class L1Cache(Cache):
     mshrs = 16
     tgts_per_mshr = 20
     writeback_clean = True
+
+    def __init__(self, options=None):
+        super().__init__(options)
+        pass
 
     def connectBus(self, bus):
         """Connect this cache to a memory-side bus"""
@@ -75,6 +79,9 @@ class L1ICache(L1Cache):
     # Set the size
     size = "32KiB"
 
+    def __init__(self, opts=None):
+        super().__init__(opts)
+
     def connectCPU(self, cpu):
         """Connect this cache's port to a CPU icache port"""
         self.cpu_side = cpu.icache_port
@@ -86,12 +93,15 @@ class L1DCache(L1Cache):
     # Set the size
     size = "32KiB"
 
+    def __init__(self, opts=None):
+        super().__init__(opts)
+
     def connectCPU(self, cpu):
         """Connect this cache's port to a CPU dcache port"""
         self.cpu_side = cpu.dcache_port
 
 
-class L2Cache(Cache):
+class L2Cache(PrefetchCache):
     """Simple L2 Cache with default values"""
 
     # Default parameters
@@ -103,6 +113,9 @@ class L2Cache(Cache):
     mshrs = 20
     tgts_per_mshr = 12
     writeback_clean = True
+
+    def __init__(self, opts=None):
+        super().__init__(opts)
 
     def connectCPUSideBus(self, bus):
         self.cpu_side = bus.mem_side_ports

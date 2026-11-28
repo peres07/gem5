@@ -59,7 +59,6 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdio>
-#include <sstream>
 
 #include "base/atomicio.hh"
 #include "base/logging.hh"
@@ -140,8 +139,7 @@ VncServer::VncServer(const Params &p)
     pixelFormat.greenshift = pixelConverter.ch_g.offset;
     pixelFormat.blueshift = pixelConverter.ch_b.offset;
 
-    if (hasListener())
-        DPRINTF(VNC, "Vnc server created at %s\n", getListenerOutput());
+    DPRINTF(VNC, "Vnc server created at port %d\n", p.port);
 }
 
 VncServer::~VncServer()
@@ -156,17 +154,6 @@ VncServer::~VncServer()
         delete dataEvent;
 }
 
-std::string
-VncServer::getListenerOutput() const
-{
-    if (!hasListener()) {
-        return "";
-    }
-
-    std::stringstream ss;
-    listener->output(ss);
-    return ss.str();
-}
 
 //socket creation and vnc client attach
 void

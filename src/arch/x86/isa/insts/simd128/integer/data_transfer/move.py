@@ -35,7 +35,7 @@
 
 microcode = """
 def macroop MOVQ_XMM_XMM {
-    movfp xmml, xmmlm, dataSize=8
+    movfp xmml, xmmlm
     lfpimm xmmh, 0
 };
 
